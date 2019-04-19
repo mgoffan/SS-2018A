@@ -50,25 +50,25 @@ public class TP4b {
 
             int kms = 10;
             double speedIncrement = 0.0001;
-            double minSpeed = 15.76;
-            int minHeight = 4400;
-            double maxSpeed = 15.80;
-            int maxHeigh = 4401;
+            double minSpeed = 7.12 + 3;
+            int minHeight = 1500;
+            double maxSpeed = 7.12 + 3.01;
+            int maxHeigh = 1501;
             System.out.println(String.format("Params: minS: %f, maxS: %f, sdel: %f, minH: %d, maxH: %d, hdel: %d", minSpeed, maxSpeed, speedIncrement, minHeight, maxHeigh, kms));
 
             // coarse
             List<List<MinDistanceTrajectory>> trajectories = trajectoryParametricHeatmap(data, kms, speedIncrement, minSpeed, maxSpeed, minHeight, maxHeigh);
 
             System.out.println("Coarse - Exporting heatmaps");
-            exportToHeatmap(ephemerisFile, kms, speedIncrement, minSpeed, maxSpeed, minHeight, maxHeigh, trajectories, 0,
-                    "jupiter_dist_smin" + minSpeed + "smax" +maxSpeed + "dspee" + speedIncrement
-                            + "hmin" + minHeight + "hmax" + maxHeigh + "dhei" + kms + ".json");
-            exportToHeatmap(ephemerisFile, kms, speedIncrement, minSpeed, maxSpeed, minHeight, maxHeigh, trajectories, 1,
-                    "saturn_dist_smin" + minSpeed + "smax" +maxSpeed + "dspee" + speedIncrement
-                    + "hmin" + minHeight + "hmax" + maxHeigh + "dhei" + kms + ".json");
-            exportToHeatmap(ephemerisFile, kms, speedIncrement, minSpeed, maxSpeed, minHeight, maxHeigh, trajectories, -1,
-                    "combined_dist_smin" + minSpeed + "smax" +maxSpeed + "dspee" + speedIncrement
-                            + "hmin" + minHeight + "hmax" + maxHeigh + "dhei" + kms + ".json");
+            // exportToHeatmap(ephemerisFile, kms, speedIncrement, minSpeed, maxSpeed, minHeight, maxHeigh, trajectories, 0,
+                    // "jupiter_dist_smin" + minSpeed + "smax" +maxSpeed + "dspee" + speedIncrement
+                            // + "hmin" + minHeight + "hmax" + maxHeigh + "dhei" + kms + ".json");
+            // exportToHeatmap(ephemerisFile, kms, speedIncrement, minSpeed, maxSpeed, minHeight, maxHeigh, trajectories, 1,
+                    // "saturn_dist_smin" + minSpeed + "smax" +maxSpeed + "dspee" + speedIncrement
+                    // + "hmin" + minHeight + "hmax" + maxHeigh + "dhei" + kms + ".json");
+            // exportToHeatmap(ephemerisFile, kms, speedIncrement, minSpeed, maxSpeed, minHeight, maxHeigh, trajectories, -1,
+                    // "combined_dist_smin" + minSpeed + "smax" +maxSpeed + "dspee" + speedIncrement
+                            // + "hmin" + minHeight + "hmax" + maxHeigh + "dhei" + kms + ".json");
 
             System.out.println("Coarse - Analyzing launch info for optimum trajectory");
             MinDistanceTrajectory bestTrajectory = findMinDistance(trajectories);
@@ -122,8 +122,7 @@ public class TP4b {
                                         Simulation<CelestialBody2D, VoyagerSimulationFrame> simulator;
                                         simulator = new VoyagerSimulation(data.getDeltaT(), bodies);
                                         double[] distance = sim(simulator, data, bodies);
-                                        System.out.println(String.format("s=%f, h=%f, j=%f, s=%f, Comb=%f", speed, height, distance[0], distance[1],
-                                                 distance[0] + distance[1]));
+                                        System.out.println(String.format("s=%f, h=%f, m=%f, t=%f", speed, height, distance[0], distance[1]));
                                         return new MinDistanceTrajectory(distance, height, speed, 0);
                                     })
                                     .sorted(Comparator.comparingDouble(MinDistanceTrajectory::getBestSpeed))
@@ -150,10 +149,10 @@ public class TP4b {
                 .orElse(null);
 
         System.out.println("Best trajectory:");
-        System.out.println(" - distance to Jupiter: " + bestTrajectory.getBestDistance()[0]);
-        System.out.println(" - distance to Saturn: " + bestTrajectory.getBestDistance()[1]);
-        System.out.println(" - time to Juputer: " + bestTrajectory.getBestDistance()[2]);
-        System.out.println(" - time to Saturn: " + bestTrajectory.getBestDistance()[3]);
+        System.out.println(" - distance to Mars: " + bestTrajectory.getBestDistance()[0]);
+        // System.out.println(" - distance to Saturn: " + bestTrajectory.getBestDistance()[1]);
+        System.out.println(" - time to Mars: " + bestTrajectory.getBestDistance()[1]);
+        // System.out.println(" - time to Saturn: " + bestTrajectory.getBestDistance()[3]);
         System.out.println(" - height: " + bestTrajectory.getBestHeight());
         System.out.println(" - speed: " + bestTrajectory.getBestSpeed());
         return bestTrajectory;
@@ -193,30 +192,26 @@ public class TP4b {
         int SECONDS_IN_A_DAY = 60 * 60 * 24;
 
         long stop = Math.round(Math.ceil(days * SECONDS_IN_A_DAY / deltaT));
-        double[] bestDistance = new double[] {Double.MAX_VALUE, Double.MAX_VALUE, 0, 0};
+        double[] bestDistance = new double[] {Double.MAX_VALUE, 0};
 
         while (stop-- > 0) {
             VoyagerSimulationFrame frame = simulator.getNextStep();
 
             CelestialBody2D voyager = null;
-            CelestialBody2D jupiter = null;
-            CelestialBody2D saturn = null;
+            CelestialBody2D mars = null;
 
             for (CelestialBody2D body : frame.getState()) {
                 switch (body.getId()) {
                     case "100":
                         voyager = body;
                         break;
-                    case "5":
-                        jupiter = body;
-                        break;
-                    case "6":
-                        saturn = body;
+                    case "4":
+                        mars = body;
                         break;
                 }
             }
 
-            if (voyager == null || jupiter == null || saturn == null) {
+            if (voyager == null || mars == null) {
                 throw new IllegalArgumentException("You forgot a planet or something?");
             }
 
@@ -226,22 +221,22 @@ public class TP4b {
             CelestialBody2D sun = frame.getState().stream()
                     .filter(p -> p.getId().equals("0")).findFirst().get();
 
-            double distanceToJupiter = voyager.distanceTo(jupiter);
-            double distanceToSaturn = voyager.distanceTo(saturn);
+            double distanceToMars = voyager.distanceTo(mars);
+            // double distanceToSaturn = voyager.distanceTo(saturn);
             double distanceToEarth = voyager.distanceTo(earth);
             double distanceToSun = voyager.distanceTo(sun);
 
-            if (distanceToJupiter < bestDistance[0]) {
-                bestDistance[0] = distanceToJupiter;
-                bestDistance[2] = frame.getTimestamp();
+            if (distanceToMars < bestDistance[0]) {
+                bestDistance[0] = distanceToMars;
+                bestDistance[1] = frame.getTimestamp();
             }
-            if (distanceToSaturn < bestDistance[1]) {
-                bestDistance[1] = distanceToSaturn;
-                bestDistance[3] = frame.getTimestamp();
-            }
+            // if (distanceToSaturn < bestDistance[1]) {
+            //     bestDistance[1] = distanceToSaturn;
+            //     bestDistance[3] = frame.getTimestamp();
+            // }
 
-            if (distanceToJupiter <= 0 || distanceToSaturn <= 0 || distanceToEarth <= 0 || distanceToSun <=0) {
-                return new double[] {Double.MAX_VALUE, Double.MAX_VALUE, 0, 0};
+            if (distanceToMars <= 0 || distanceToEarth <= 0 || distanceToSun <=0) {
+                return new double[] {Double.MAX_VALUE, 0, 0};
             }
         }
         return bestDistance;
