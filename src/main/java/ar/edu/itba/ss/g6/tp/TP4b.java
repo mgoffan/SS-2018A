@@ -114,8 +114,8 @@ public class TP4b {
         CelestialData data = loadEphemeris(ephemerisFile);
 
         System.out.println("Simulating alternative dates using the optimal trajectory data");
-        System.out.println("This will perform " + 400 + " simulations.");
-        List<double[]> trajectories = IntStream.range(0, 400).parallel().mapToObj(day -> {
+        System.out.println("This will perform " + 1600 + " simulations.");
+        List<double[]> trajectories = IntStream.range(0, 1600).parallel().mapToObj(day -> {
             System.out.println(day + " days from launch");
             CelestialBody2D[] bodies = loadBodiesDelta(data, bestTrajectory, day);
             VoyagerSimulation simulator = new VoyagerSimulation(data.getDeltaT(), bodies);
