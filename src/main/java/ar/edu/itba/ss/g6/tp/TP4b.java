@@ -334,6 +334,9 @@ public class TP4b {
         if (sun == null || earth == null) {
             throw new IllegalArgumentException("Missing sun or earth");
         }
+        if (!sun.getId().equals("0") || !earth.getId().equals("3")) {
+            throw new IllegalArgumentException("Wrong sun or earth ids");
+        }
 
         voyager = loadVoyager(data, voyagerData.getBestHeight(), voyagerData.getBestSpeed(), voyagerData.getAngle(), sun, earth);
 
