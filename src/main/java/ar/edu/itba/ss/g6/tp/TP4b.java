@@ -328,15 +328,8 @@ public class TP4b {
 
         bodies = runOrbitalSimulation(data, days, bodies);
 
-        for (int idx = 0; idx < planets.length; idx++) {
-            Ephemeris planet = planets[idx];
-            String id = planet.getId();
-            if (id.equals("0")) {
-                sun = bodies[idx];
-            } else if (id.equals("3")) {
-                earth = bodies[idx];
-            }
-        }
+        sun = bodies[0];
+        earth = bodies[1];
 
         if (sun == null || earth == null) {
             throw new IllegalArgumentException("Missing sun or earth");
