@@ -114,8 +114,8 @@ public class TP4b {
         CelestialData data = loadEphemeris(ephemerisFile);
 
         System.out.println("Simulating alternative dates using the optimal trajectory data");
-        System.out.println("This will perform " + 1500 + " simulations.");
-        List<double[]> trajectories = IntStream.range(0, 1500).parallel().mapToObj(day -> {
+        System.out.println("This will perform " + 400 + " simulations.");
+        List<double[]> trajectories = IntStream.range(0, 400).parallel().mapToObj(day -> {
             System.out.println(day + " days from launch");
             CelestialBody2D[] bodies = loadBodiesDelta(data, bestTrajectory, day);
             VoyagerSimulation simulator = new VoyagerSimulation(data.getDeltaT(), bodies);
@@ -235,7 +235,7 @@ public class TP4b {
 
             for (CelestialBody2D body : frame.getState()) {
                 switch (body.getId()) {
-                    case "100":
+                    case "-1":
                         voyager = body;
                         break;
                     case "4":
@@ -268,7 +268,7 @@ public class TP4b {
             //     bestDistance[3] = frame.getTimestamp();
             // }
 
-            if (distanceToMars <= 0 || distanceToEarth <= 0 || distanceToSun <=0) {
+            if (distanceToEarth <= 0 || distanceToSun <=0) {
                 return new double[] {Double.MAX_VALUE, 0};
             }
         }
@@ -294,7 +294,7 @@ public class TP4b {
                     exporter.addFrameToFile(w, frame.getState(), 0, null);
                 }
             double speed = frame.getState().stream()
-                .filter(p -> p.getId().equals("100"))
+                .filter(p -> p.getId().equals("-1"))
                 .mapToDouble(p -> p.getSpeed()).findFirst().orElse(0);
             speedList.add(speed);
             }
