@@ -301,6 +301,7 @@ public class TP4b {
                 .mapToDouble(p -> p.getSpeed()).findFirst().orElse(0);
             speedList.add(speed);
             }
+            w.flush();
         } catch (IOException ex) {
             ex.printStackTrace();
         }
@@ -309,6 +310,7 @@ public class TP4b {
                 double speed = speedList.get(i);
                 w.write(String.format("%d \t %e\n", i * 100, speed));
             }
+            w.flush();
         } catch (IOException e) {
             e.printStackTrace();
         }
