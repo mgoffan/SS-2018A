@@ -37,7 +37,7 @@ public class TP4b {
 //        CelestialData data = loadEphemeris(ephemerisFile);
 //        MinDistanceTrajectory distanceTrajectory = new MinDistanceTrajectory(null, 5000, 15.2,0);
 //        simulateAndSave(data, distanceTrajectory, "manual");
-        MinDistanceTrajectory bestTrajectory = new MinDistanceTrajectory(null, 1500, 3 + 7.12, 0);
+        MinDistanceTrajectory bestTrajectory = new MinDistanceTrajectory(null, 1500, 8 + 7.12, 0);
         int bestDay = exerciseThreePointFour(ephemerisFile, bestTrajectory);
         System.out.println("Best day is " + bestDay);
         //int bestYear = exerciseThreePointFive(ephemerisFile, bestTrajectory);
