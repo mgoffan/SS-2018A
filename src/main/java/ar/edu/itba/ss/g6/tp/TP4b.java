@@ -33,12 +33,13 @@ public class TP4b {
 //        exerciseThreePointFour(ephemerisFile, traj);
 //        System.exit(0);
 
-        MinDistanceTrajectory bestTrajectory = exerciseThreePointOne(ephemerisFile);
+        // MinDistanceTrajectory bestTrajectory = exerciseThreePointOne(ephemerisFile);
 //        CelestialData data = loadEphemeris(ephemerisFile);
 //        MinDistanceTrajectory distanceTrajectory = new MinDistanceTrajectory(null, 5000, 15.2,0);
 //        simulateAndSave(data, distanceTrajectory, "manual");
-        //MinDistanceTrajectory bestTrajectory = new MinDistanceTrajectory(null, 200, 15.0, 0);
-        //int bestDay = exerciseThreePointFour(ephemerisFile, bestTrajectory);
+        MinDistanceTrajectory bestTrajectory = new MinDistanceTrajectory(null, 1500, 3 + 7.12, 0);
+        int bestDay = exerciseThreePointFour(ephemerisFile, bestTrajectory);
+        System.out.println("Best day is " + bestDay);
         //int bestYear = exerciseThreePointFive(ephemerisFile, bestTrajectory);
         //int bestAngle = exerciseThreePointSix(ephemerisFile, bestTrajectory);
     }
@@ -107,6 +108,38 @@ public class TP4b {
             ex.printStackTrace();
         }
         return null;
+    }
+
+    private static int exerciseThreePointFour(File ephemerisFile, MinDistanceTrajectory bestTrajectory) throws IOException {
+        CelestialData data = loadEphemeris(ephemerisFile);
+
+        System.out.println("Simulating alternative dates using the optimal trajectory data");
+        System.out.println("This will perform " + 1500 + " simulations.");
+        List<double[]> trajectories = IntStream.range(0, 1500).parallel().mapToObj(day -> {
+            System.out.println(day + " days from launch");
+            CelestialBody2D[] bodies = loadBodiesDelta(data, bestTrajectory, day);
+            VoyagerSimulation simulator = new VoyagerSimulation(data.getDeltaT(), bodies);
+            double[] distance = sim(simulator, data, bodies);
+            return new double[]{day, distance[0]};
+        }).collect(Collectors.toList());
+        int bestDay = trajectories.stream().filter(o -> {
+            double[] t = o;
+            return t[1] > 0 && t[1] < Double.MAX_VALUE;
+        }).min(Comparator.comparingDouble(o -> {
+            double[] t = o;
+            return t[1];
+        })).map(e -> (int) e[0]).orElse(0);
+
+        CelestialBody2D[] bodies = loadBodiesDelta(data, bestTrajectory, bestDay);
+        VoyagerSimulation simulator = new VoyagerSimulation(data.getDeltaT(), bodies);
+        simulate(simulator, data, bodies, "3.4");
+        exportToFile(trajectories.stream().collect(Collectors.toList()), "3.4-days.dat");
+
+        System.out.println("best day: " + bestDay);
+        return bestDay;
+        //int bestDay = exerciseThreePointFour(ephemerisFile, bestTrajectory);
+        //int bestYear = exerciseThreePointFive(ephemerisFile, bestTrajectory);
+        //int bestAngle = exerciseThreePointSix(ephemerisFile, bestTrajectory);
     }
 
     private static List<List<MinDistanceTrajectory>> trajectoryParametricHeatmap(CelestialData data, double kms, double speedIncrement, double minSpeed, double maxSpeed, double minHeight, double maxHeight) {
@@ -236,7 +269,7 @@ public class TP4b {
             // }
 
             if (distanceToMars <= 0 || distanceToEarth <= 0 || distanceToSun <=0) {
-                return new double[] {Double.MAX_VALUE, 0, 0};
+                return new double[] {Double.MAX_VALUE, 0};
             }
         }
         return bestDistance;
