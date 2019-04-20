@@ -49,13 +49,13 @@ public class TP4b {
             CelestialData data = loadEphemeris(ephemerisFile);
             System.out.println("Coarse - Building simulation grid");
 
-            double deltaAngle = 0.5;
-            double speedIncrement = 0.001;
+            double deltaAngle = 1;
+            double speedIncrement = 0.01;
             double minSpeed = 7.12 + 3;
-            int minAngle = 0;
+            double minAngle = 0;
             double maxSpeed = 7.12 + 13;
-            int maxAngle = 181;
-            System.out.println(String.format("Params: minS: %f, maxS: %f, sdel: %f, minH: %d, maxH: %d, hdel: %d", minSpeed, maxSpeed, speedIncrement, minAngle, maxAngle, deltaAngle));
+            double maxAngle = 181;
+            System.out.println(String.format("Params: minS: %f, maxS: %f, sdel: %f, minA: %f, maxA: %f, adel: %f", minSpeed, maxSpeed, speedIncrement, minAngle, maxAngle, deltaAngle));
 
             // coarse
             List<List<MinDistanceTrajectory>> trajectories = trajectoryParametricHeatmap(data, deltaAngle, speedIncrement, minSpeed, maxSpeed, minAngle, maxAngle);
