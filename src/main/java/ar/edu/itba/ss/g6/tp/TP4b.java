@@ -49,8 +49,8 @@ public class TP4b {
             CelestialData data = loadEphemeris(ephemerisFile);
             System.out.println("Coarse - Building simulation grid");
 
-            double deltaAngle = 0.5;
-            double speedIncrement = 0.001;
+            double deltaAngle = 1;
+            double speedIncrement = 0.01;
             double minSpeed = 7.12 + 3;
             double minAngle = 0;
             double maxSpeed = 7.12 + 13;
