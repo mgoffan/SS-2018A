@@ -50,10 +50,10 @@ public class TP4b {
             System.out.println("Coarse - Building simulation grid");
 
             double deltaAngle = 1;
-            double speedIncrement = 0.01;
+            double speedIncrement = 0.1;
             double minSpeed = 7.12 + 3;
             double minAngle = 0;
-            double maxSpeed = 7.12 + 13;
+            double maxSpeed = 7.12 + 12.1;
             double maxAngle = 181;
             System.out.println(String.format("Params: minS: %f, maxS: %f, sdel: %f, minA: %f, maxA: %f, adel: %f", minSpeed, maxSpeed, speedIncrement, minAngle, maxAngle, deltaAngle));
 
