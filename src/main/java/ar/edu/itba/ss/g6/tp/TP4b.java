@@ -177,7 +177,7 @@ public class TP4b {
         MinDistanceTrajectory bestTrajectory = trajStream
                 .min(Comparator.comparingDouble(o -> {
                     double t[] = o.getBestDistance();
-                    return t[0] + t[1];
+                    return t[0];
                 }))
                 .orElse(null);
 
