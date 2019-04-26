@@ -129,7 +129,7 @@ public class TP5 {
                                 stabilizedTimestamp = frame.getTimestamp();
                             }
                         }
-                        if(stabilizedTimestamp != 0 && frame.getTimestamp() > stabilizedTimestamp + 2) {
+                        if((stabilizedTimestamp != 0 && frame.getTimestamp() > stabilizedTimestamp + 2)) {
                             break;
                         }
                     }
@@ -151,10 +151,10 @@ public class TP5 {
         Set<TheParticle> walls = new HashSet<>();
         int id = -3;
         for(double i = 0; i < (values.getWidth() - values.getAperture())/2; i+=0.01, id--) {
-            walls.add(new TheParticle(Integer.toString(id), i, 0, 0, 0, 0.005, 0, -300));
+            walls.add(new TheParticle(Integer.toString(id), i, 0, 0, 0, 0.005, 0, -3));
         }
         for(double i = (values.getWidth() + values.getAperture())/2; i < values.getWidth(); i+=0.01, id--) {
-            walls.add(new TheParticle(Integer.toString(id), i, 0, 0, 0, 0.005, 0, -300));
+            walls.add(new TheParticle(Integer.toString(id), i, 0, 0, 0, 0.005, 0, -3));
         }
         return walls;
     }
