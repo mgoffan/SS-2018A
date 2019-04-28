@@ -165,7 +165,7 @@ public class TP4b {
 
     private static void simulateAndSave(CelestialData data, MinDistanceTrajectory bestTrajectory, String name) {
         CelestialBody2D[] bodies;
-        bodies = loadBodies(data, bestTrajectory.getBestHeight(), bestTrajectory.getBestSpeed(), 0);
+        bodies = loadBodies(data, bestTrajectory.getBestHeight(), bestTrajectory.getBestSpeed(), bestTrajectory.getAngle());
         Simulation<CelestialBody2D, VoyagerSimulationFrame> simulator;
         simulator = new VoyagerSimulation(data.getDeltaT(), bodies);
         simulate(simulator, data, bodies, name);
