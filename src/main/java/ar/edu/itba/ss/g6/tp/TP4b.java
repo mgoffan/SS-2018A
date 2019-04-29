@@ -37,7 +37,7 @@ public class TP4b {
 //        CelestialData data = loadEphemeris(ephemerisFile);
 //        MinDistanceTrajectory distanceTrajectory = new MinDistanceTrajectory(null, 5000, 15.2,0);
 //        simulateAndSave(data, distanceTrajectory, "manual");
-        MinDistanceTrajectory bestTrajectory = new MinDistanceTrajectory(null, 1500, 8 + 7.12, 0);
+        MinDistanceTrajectory bestTrajectory = new MinDistanceTrajectory(null, 1500, 3 + 7.12, 180);
         double bestDay = exerciseThreePointFour(ephemerisFile, bestTrajectory);
         System.out.println("Best day is " + bestDay);
         //int bestYear = exerciseThreePointFive(ephemerisFile, bestTrajectory);
@@ -110,15 +110,20 @@ public class TP4b {
         return null;
     }
 
+    private static double transformTime(double d) {
+        return d / 1440.0;
+    }
+
     private static int exerciseThreePointFour(File ephemerisFile, MinDistanceTrajectory bestTrajectory) throws IOException {
         CelestialData data = loadEphemeris(ephemerisFile);
 
         System.out.println("Simulating alternative dates using the optimal trajectory data");
-        System.out.println("This will perform " + 145 + " simulations.");
-        List<double[]> trajectories = IntStream.range(662620, 662620 + 1).parallel().mapToObj(day -> {
-            if (day % 10 != 0) return new double[]{day, Double.MAX_VALUE};
-            // System.out.println((day / 6.0) + " minutes from launch");
-            CelestialBody2D[] bodies = loadBodiesDelta(data, bestTrajectory, day / 1440.0);
+        System.out.println("This will perform " + 288 + " simulations.");
+        List<double[]> trajectories = IntStream.range(40 * 1440 - 1440, 40 * 1440 + 1440 + 1)
+        .filter(d -> d % 10 == 0)
+        .parallel().mapToObj(day -> {
+            System.out.println(transformTime(day) + " days from launch");
+            CelestialBody2D[] bodies = loadBodiesDelta(data, bestTrajectory, transformTime(day));
             VoyagerSimulation simulator = new VoyagerSimulation(data.getDeltaT(), bodies);
             double[] distance = sim(simulator, data, bodies);
             return new double[]{day, distance[0]};
@@ -131,10 +136,10 @@ public class TP4b {
             return t[1];
         })).map(e -> (int) e[0]).orElse(0);
 
-        CelestialBody2D[] bodies = loadBodiesDelta(data, bestTrajectory, bestDay / 1440.0);
+        CelestialBody2D[] bodies = loadBodiesDelta(data, bestTrajectory, transformTime(bestDay));
         VoyagerSimulation simulator = new VoyagerSimulation(data.getDeltaT(), bodies);
-        simulate(simulator, data, bodies, "3.4-10");
-        exportToFile(trajectories.stream().collect(Collectors.toList()), "3.4-10-days.dat");
+        simulate(simulator, data, bodies, "3.4-mars");
+        exportToFile(trajectories.stream().collect(Collectors.toList()), "3.4-10-mars.dat");
 
         System.out.println("best day: " + bestDay);
         return bestDay;
@@ -178,14 +183,14 @@ public class TP4b {
         MinDistanceTrajectory bestTrajectory = trajStream
                 .min(Comparator.comparingDouble(o -> {
                     double t[] = o.getBestDistance();
-                    return t[0] + t[1];
+                    return t[0];
                 }))
                 .orElse(null);
 
         System.out.println("Best trajectory:");
-        System.out.println(" - distance to Mars: " + bestTrajectory.getBestDistance()[0]);
+        System.out.println(" - distance to Earth: " + bestTrajectory.getBestDistance()[0]);
         // System.out.println(" - distance to Saturn: " + bestTrajectory.getBestDistance()[1]);
-        System.out.println(" - time to Mars: " + bestTrajectory.getBestDistance()[1]);
+        System.out.println(" - time to Earth: " + bestTrajectory.getBestDistance()[1]);
         // System.out.println(" - time to Saturn: " + bestTrajectory.getBestDistance()[3]);
         System.out.println(" - height: " + bestTrajectory.getBestHeight());
         System.out.println(" - speed: " + bestTrajectory.getBestSpeed());
@@ -232,25 +237,29 @@ public class TP4b {
             VoyagerSimulationFrame frame = simulator.getNextStep();
 
             CelestialBody2D voyager = null;
-            CelestialBody2D mars = null;
+            CelestialBody2D earth = null;
 
             for (CelestialBody2D body : frame.getState()) {
                 switch (body.getId()) {
                     case "-1":
                         voyager = body;
                         break;
-                    case "4":
-                        mars = body;
+                    case "3":
+                        earth = body;
                         break;
                 }
             }
 
-            if (voyager == null || mars == null) {
+            if (voyager == null || earth == null) {
                 throw new IllegalArgumentException("You forgot a planet or something?");
             }
 
-            CelestialBody2D earth = frame.getState().stream()
-                    .filter(p -> p.getId().equals("3")).findFirst().get();
+            if (!voyager.getId().equals("-1") || !earth.getId().equals("3")) {
+                throw new IllegalArgumentException("Wrong earth or voyager id");
+            }
+
+            CelestialBody2D mars = frame.getState().stream()
+                    .filter(p -> p.getId().equals("4")).findFirst().get();
 
             CelestialBody2D sun = frame.getState().stream()
                     .filter(p -> p.getId().equals("0")).findFirst().get();
@@ -260,8 +269,8 @@ public class TP4b {
             double distanceToEarth = voyager.distanceTo(earth);
             double distanceToSun = voyager.distanceTo(sun);
 
-            if (distanceToMars < bestDistance[0]) {
-                bestDistance[0] = distanceToMars;
+            if (distanceToEarth < bestDistance[0]) {
+                bestDistance[0] = distanceToEarth;
                 bestDistance[1] = frame.getTimestamp();
             }
             // if (distanceToSaturn < bestDistance[1]) {
@@ -269,7 +278,7 @@ public class TP4b {
             //     bestDistance[3] = frame.getTimestamp();
             // }
 
-            if (distanceToEarth <= 0 || distanceToSun <=0) {
+            if (distanceToMars <= 0 || distanceToSun <=0) {
                 return new double[] {Double.MAX_VALUE, 0};
             }
         }
@@ -324,7 +333,7 @@ public class TP4b {
         Ephemeris[] planets = data.getPlanets();
         CelestialBody2D voyager;
         CelestialBody2D sun = null;
-        CelestialBody2D earth = null;
+        CelestialBody2D mars = null;
         CelestialBody2D[] bodies = loadPlanets(planets);
 
         bodies = runOrbitalSimulation(data, days, bodies);
@@ -334,20 +343,23 @@ public class TP4b {
             String id = planet.getId();
             if (id.equals("0")) {
                 sun = bodies[idx];
-            } else if (id.equals("3")) {
-                earth = bodies[idx];
+            } else if (id.equals("4")) {
+                mars = bodies[idx];
             }
         }
 
 
-        if (sun == null || earth == null) {
-            throw new IllegalArgumentException("Missing sun or earth");
+        if (sun == null || mars == null) {
+            throw new IllegalArgumentException("Missing sun or mars");
         }
-        if (!sun.getId().equals("0") || !earth.getId().equals("3")) {
-            throw new IllegalArgumentException("Wrong sun or earth ids");
+        if (!sun.getId().equals("0") || !mars.getId().equals("4")) {
+            System.out.println(bodies);
+            System.out.println(sun);
+            System.out.println(mars);
+            throw new IllegalArgumentException("Wrong sun or mars ids");
         }
 
-        voyager = loadVoyager(data, voyagerData.getBestHeight(), voyagerData.getBestSpeed(), voyagerData.getAngle(), sun, earth);
+        voyager = loadVoyager(data, voyagerData.getBestHeight(), voyagerData.getBestSpeed(), voyagerData.getAngle(), sun, mars);
 
         bodies = Arrays.copyOf(bodies, bodies.length + 1);
         bodies[bodies.length - 1] = voyager;
@@ -383,7 +395,7 @@ public class TP4b {
         Ephemeris[] planets = data.getPlanets();
         CelestialBody2D voyager;
         CelestialBody2D sun = null;
-        CelestialBody2D earth = null;
+        CelestialBody2D mars = null;
         CelestialBody2D[] bodies = loadPlanets(planets);
 
         for (int idx = 0; idx < planets.length; idx++) {
@@ -391,15 +403,18 @@ public class TP4b {
             String id = planet.getId();
             if (id.equals("0")) {
                 sun = bodies[idx];
-            } else if (id.equals("3")) {
-                earth = bodies[idx];
+            } else if (id.equals("4")) {
+                mars = bodies[idx];
             }
         }
 
-        if (sun == null || earth == null) {
+        if (sun == null || mars == null) {
             throw new IllegalArgumentException("Missing sun or earth");
         }
-        voyager = loadVoyager(data, voyagerDistance, voyagerSpeed, voyagerAngle, sun, earth);
+        if (!sun.getId().equals("0") || !mars.getId().equals("4")) {
+            throw new IllegalArgumentException("invalid sun or mars id");
+        }
+        voyager = loadVoyager(data, voyagerDistance, voyagerSpeed, voyagerAngle, sun, mars);
 
         bodies = Arrays.copyOf(bodies, bodies.length + 1);
         bodies[bodies.length - 1] = voyager;
