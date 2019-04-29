@@ -115,7 +115,7 @@ public class TP4b {
 
         System.out.println("Simulating alternative dates using the optimal trajectory data");
         System.out.println("This will perform " + 145 + " simulations.");
-        List<double[]> trajectories = IntStream.range(662400 - 1440, 662400 + 1440 + 1).parallel().mapToObj(day -> {
+        List<double[]> trajectories = IntStream.range(662620, 662620 + 1).parallel().mapToObj(day -> {
             if (day % 10 != 0) return new double[]{day, Double.MAX_VALUE};
             // System.out.println((day / 6.0) + " minutes from launch");
             CelestialBody2D[] bodies = loadBodiesDelta(data, bestTrajectory, day / 1440.0);
@@ -131,7 +131,7 @@ public class TP4b {
             return t[1];
         })).map(e -> (int) e[0]).orElse(0);
 
-        CelestialBody2D[] bodies = loadBodiesDelta(data, bestTrajectory, bestDay);
+        CelestialBody2D[] bodies = loadBodiesDelta(data, bestTrajectory, bestDay / 1440.0);
         VoyagerSimulation simulator = new VoyagerSimulation(data.getDeltaT(), bodies);
         simulate(simulator, data, bodies, "3.4-10");
         exportToFile(trajectories.stream().collect(Collectors.toList()), "3.4-10-days.dat");
