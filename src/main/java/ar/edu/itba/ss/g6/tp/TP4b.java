@@ -38,7 +38,7 @@ public class TP4b {
 //        MinDistanceTrajectory distanceTrajectory = new MinDistanceTrajectory(null, 5000, 15.2,0);
 //        simulateAndSave(data, distanceTrajectory, "manual");
         MinDistanceTrajectory bestTrajectory = new MinDistanceTrajectory(null, 1500, 8 + 7.12, 0);
-        int bestDay = exerciseThreePointFour(ephemerisFile, bestTrajectory);
+        double bestDay = exerciseThreePointFour(ephemerisFile, bestTrajectory);
         System.out.println("Best day is " + bestDay);
         //int bestYear = exerciseThreePointFive(ephemerisFile, bestTrajectory);
         //int bestAngle = exerciseThreePointSix(ephemerisFile, bestTrajectory);
@@ -114,10 +114,11 @@ public class TP4b {
         CelestialData data = loadEphemeris(ephemerisFile);
 
         System.out.println("Simulating alternative dates using the optimal trajectory data");
-        System.out.println("This will perform " + 1600 + " simulations.");
-        List<double[]> trajectories = IntStream.range(0, 1600).parallel().mapToObj(day -> {
-            System.out.println(day + " days from launch");
-            CelestialBody2D[] bodies = loadBodiesDelta(data, bestTrajectory, day);
+        System.out.println("This will perform " + 145 + " simulations.");
+        List<double[]> trajectories = IntStream.range(662400 - 1440, 662400 + 1440 + 1).parallel().mapToObj(day -> {
+            if (day % 10 != 0) return new double[]{day, Double.MAX_VALUE};
+            // System.out.println((day / 6.0) + " minutes from launch");
+            CelestialBody2D[] bodies = loadBodiesDelta(data, bestTrajectory, day / 1440.0);
             VoyagerSimulation simulator = new VoyagerSimulation(data.getDeltaT(), bodies);
             double[] distance = sim(simulator, data, bodies);
             return new double[]{day, distance[0]};
@@ -132,8 +133,8 @@ public class TP4b {
 
         CelestialBody2D[] bodies = loadBodiesDelta(data, bestTrajectory, bestDay);
         VoyagerSimulation simulator = new VoyagerSimulation(data.getDeltaT(), bodies);
-        simulate(simulator, data, bodies, "3.4");
-        exportToFile(trajectories.stream().collect(Collectors.toList()), "3.4-days.dat");
+        simulate(simulator, data, bodies, "3.4-10");
+        exportToFile(trajectories.stream().collect(Collectors.toList()), "3.4-10-days.dat");
 
         System.out.println("best day: " + bestDay);
         return bestDay;
@@ -319,7 +320,7 @@ public class TP4b {
                     .toArray(i -> new CelestialBody2D[i]);
     }
 
-    private static CelestialBody2D[] loadBodiesDelta(CelestialData data, MinDistanceTrajectory voyagerData, final int days) {
+    private static CelestialBody2D[] loadBodiesDelta(CelestialData data, MinDistanceTrajectory voyagerData, final double days) {
         Ephemeris[] planets = data.getPlanets();
         CelestialBody2D voyager;
         CelestialBody2D sun = null;
@@ -353,9 +354,11 @@ public class TP4b {
         return bodies;
     }
 
-    private static CelestialBody2D[] runOrbitalSimulation(CelestialData data, int days, CelestialBody2D[] bodies) {
+    private static CelestialBody2D[] runOrbitalSimulation(CelestialData data, double days, CelestialBody2D[] bodies) {
         double deltaT = data.getDeltaT();
         int SECONDS_IN_A_DAY = 60 * 60 * 24;
+
+        // System.out.println((days - 459) + "\t" + (int)((days) / 60) + ":" + (int)(days % 60));
 
         long stop = Math.round(Math.ceil(Math.abs(days) * SECONDS_IN_A_DAY / deltaT));
 
