@@ -37,9 +37,9 @@ public class TP4b {
 //        CelestialData data = loadEphemeris(ephemerisFile);
 //        MinDistanceTrajectory distanceTrajectory = new MinDistanceTrajectory(null, 5000, 15.2,0);
 //        simulateAndSave(data, distanceTrajectory, "manual");
-        MinDistanceTrajectory bestTrajectory = new MinDistanceTrajectory(null, 1500, 3 + 7.12, 180);
+        MinDistanceTrajectory bestTrajectory = new MinDistanceTrajectory(null, 9377, 5, 180);
         double bestDay = exerciseThreePointFour(ephemerisFile, bestTrajectory);
-        System.out.println("Best day is " + bestDay);
+        System.out.println("Best day is " + transformTime(bestDay));
         //int bestYear = exerciseThreePointFive(ephemerisFile, bestTrajectory);
         //int bestAngle = exerciseThreePointSix(ephemerisFile, bestTrajectory);
     }
@@ -119,7 +119,7 @@ public class TP4b {
 
         System.out.println("Simulating alternative dates using the optimal trajectory data");
         System.out.println("This will perform " + 288 + " simulations.");
-        List<double[]> trajectories = IntStream.range(40 * 1440 - 1440, 40 * 1440 + 1440 + 1)
+        List<double[]> trajectories = IntStream.range(443 * 1440 - 1440, 443 * 1440 + 1440 + 1)
         .filter(d -> d % 10 == 0)
         .parallel().mapToObj(day -> {
             System.out.println(transformTime(day) + " days from launch");
