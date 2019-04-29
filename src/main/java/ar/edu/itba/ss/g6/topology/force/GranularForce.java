@@ -15,7 +15,7 @@ public class GranularForce implements Force {
         this.Mu = Mu;
         this.Gamma = Gamma;
         this.KN = 10 * 10 * 10 * 10 * 10; // N/m
-        this.KT = 2000;
+        this.KT = 2 * KN;
     }
 
     public V2d getForce(final TheParticle particle, final TheParticle otherParticle) {
