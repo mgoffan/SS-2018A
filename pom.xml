@@ -30,7 +30,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>ar.edu.itba.ss.g6.tp.TP4b</mainClass>
+                            <mainClass>ar.edu.itba.ss.g6.tp.TP5</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>

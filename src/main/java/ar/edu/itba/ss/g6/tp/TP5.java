@@ -35,6 +35,8 @@ public class TP5 {
             System.exit(1);
         }
 
+        System.out.println(values);
+
 
         if (values.isGenerate()) {
             generate(values);
