@@ -153,7 +153,7 @@ public class GranularSimulation implements TimeDrivenSimulation<TheParticle, Gra
         timestamp += deltaT;
         flowed.set(0);
 
-        Set<TheParticle> state = particles.parallelStream()
+        Set<TheParticle> state = particles.stream().parallel()
             .map(this::move)
             .map(this::warp)
             .collect(Collectors.toSet());

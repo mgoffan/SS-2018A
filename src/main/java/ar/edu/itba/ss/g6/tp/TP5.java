@@ -35,6 +35,8 @@ public class TP5 {
             System.exit(1);
         }
 
+        System.out.println(values);
+
 
         if (values.isGenerate()) {
             generate(values);
@@ -88,6 +90,7 @@ public class TP5 {
 
         double currentFlow = 0;
         double[] totalKE = new double[frameCount];
+        double[] totalE = new double[frameCount];
         double[] flow = new double[frameCount];
         double stabilizedTimestamp = 0;
 
@@ -108,6 +111,7 @@ public class TP5 {
                     totalKE[currentFrame] = frame.getState().parallelStream()
                             .mapToDouble(TheParticle::getKineticEnergy)
                             .sum();
+                    totalE[currentFrame] = totalKE[currentFrame] + frame.getState().parallelStream().mapToDouble(TheParticle::getPotentialEnergy).sum();
                     flow[currentFrame] = currentFlow;
 
                     if(values.getAperture() != 0) {
@@ -135,8 +139,8 @@ public class TP5 {
                     }
                     currentFlow = 0;
                 }
-
             }
+  
             System.out.println("Flow stabilized at:" + stabilizedTimestamp);
             System.out.println("Max Particle Height:" + simulation.getMaxHeight());
         } catch (IOException e) {
@@ -144,7 +148,7 @@ public class TP5 {
             System.exit(4);
         }
 
-        writeStatsToFile(values, flow, totalKE, stabilizedTimestamp);
+        writeStatsToFile(values, flow, totalKE, totalE, stabilizedTimestamp);
     }
 
     private static Set<TheParticle> generateVisualWalls(CommandLineOptions values) {
@@ -177,12 +181,12 @@ public class TP5 {
     }
 
 
-    private static void writeStatsToFile(CommandLineOptions values, double flow[], double totalKE[], double stabilizeTime) {
+    private static void writeStatsToFile(CommandLineOptions values, double flow[], double totalKE[], double totalE[], double stabilizeTime) {
         Path output = values.getStatsFile();
         output = Paths.get(output.toString() + "-stab-" +Double.toString(stabilizeTime));
         try (BufferedWriter out = Files.newBufferedWriter(output, Charset.defaultCharset())) {
             for (int i = 0; i < Math.min(flow.length, totalKE.length); i++) {
-                out.write(String.format("%d\t%e\t%e\n", i, flow[i], totalKE[i]));
+                out.write(String.format("%d\t%e\t%e\t%e\n", i, flow[i], totalKE[i], totalE[i]));
             }
         } catch (IOException e) {
             System.err.println("Can't write stats 🤷🏻‍♂️");

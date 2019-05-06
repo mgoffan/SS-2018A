@@ -148,6 +148,11 @@ public class TheParticle implements Particle {
         double vy2 = getVelocity().getY() * getVelocity().getY();
         return 0.5 * getMass() * (vx2 + vy2);
     }
+    
+    public double getPotentialEnergy(){
+      double y = getPosition().y;
+      return getMass() * 9.81 *  y;
+    }
 
     @Override
     public String toString() {

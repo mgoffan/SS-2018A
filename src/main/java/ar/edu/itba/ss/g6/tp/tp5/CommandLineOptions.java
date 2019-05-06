@@ -63,7 +63,7 @@ public class CommandLineOptions {
 
     @Option(name = "-ts", aliases = { "--time-step" }, required = false,
      usage = "time step for simulation")
-    private double timeStep = .00005;
+    private double timeStep = 0.00001;
 
     @Option(name = "-f", aliases = { "--fps" }, required = false,
      usage = "frames per second")
@@ -153,5 +153,28 @@ public class CommandLineOptions {
 
     public Path getStatsFile() {
         return statsFile;
+    }
+
+    @Override
+    public String toString() {
+        return
+        "isErrorFree(): " + isErrorFree() + "\n" +
+        "getInFile(): " + getInFile() + "\n" +
+        "getOutFile(): " + getOutFile() + "\n" +
+        "isGenerate(): " + isGenerate() + "\n" +
+        "getDuration(): " + getDuration() + "\n" +
+        "getTimeStep(): " + getTimeStep() + "\n" +
+        "isSimulate(): " + isSimulate() + "\n" +
+        "getLenght(): " + getLenght() + "\n" +
+        "getAperture(): " + getAperture() + "\n" +
+        "getWidth(): " + getWidth() + "\n" +
+        "getParticles(): " + getParticles() + "\n" +
+        "getMinDiameter(): " + getMinDiameter() + "\n" +
+        "getMaxDiameter(): " + getMaxDiameter() + "\n" +
+        "getMu(): " + getMu() + "\n" +
+        "getGamma(): " + getGamma() + "\n" +
+        "getParticleMass(): " + getParticleMass() + "\n" +
+        "getFps(): " + getFps() + "\n" +
+        "getStatsFile(): " + getStatsFile() + "\n";
     }
 }
