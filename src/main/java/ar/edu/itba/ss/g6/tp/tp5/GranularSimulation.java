@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class GranularSimulation implements TimeDrivenSimulation<TheParticle, GranularSimulationFrame> {
-    private final static double G = -9.8;
+    private final static double G = -9.81;
     private final double W;
     private final double L;
     private final double D;
@@ -102,7 +102,7 @@ public class GranularSimulation implements TimeDrivenSimulation<TheParticle, Gra
     }
 
     private double getYAcceleration(@NotNull TheParticle particle) {
-        return getForce(particle).getY() / particle.getMass();
+        return G + getForce(particle).getY() / particle.getMass();
     }
 
     private TheParticle move(@NotNull TheParticle particle) {

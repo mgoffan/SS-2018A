@@ -4,6 +4,8 @@ import ar.edu.itba.ss.g6.topology.geometry.Wall;
 import ar.edu.itba.ss.g6.topology.particle.TheParticle;
 import ar.edu.itba.ss.g6.topology.vector.V2d;
 
+import java.util.Scanner;
+
 public class GranularForce implements Force {
 
     private final double Mu;
@@ -31,11 +33,26 @@ public class GranularForce implements Force {
             final V2d tangentialForce = tangentialDirection.scale(Mu * normalForce.module() * Math.signum(deltaVel.dot(tangentialDirection)));
             final V2d tangentialForce0 = tangentialDirection.scale(KT * E * deltaVel.dot(tangentialDirection));
 
+            // if (counter-- > 0) {
+            //     System.out.println(normalForce);
+            //     System.out.println(tangentialForce);
+            //     System.out.println(tangentialForce0);
+            // }
+
+            // particle.setTangentialForce(tangentialForce0);
+            // particle.setNormalForce(normalForce);
+
             particle.addNormalForce(normalForce.module());
             return tangentialForce0.add(normalForce);
         }
+        // if (particle.getTangentialForce().getX() == 0 && particle.getTangentialForce().getY() == 0) {
+        //     particle.setTangentialForce(new V2d(0, 0));
+        //     particle.setNormalForce(new V2d(0, 0));
+        // }
         return new V2d(0, 0);
     }
+
+    // int counter = 10;
 
 
     public V2d getForce(final TheParticle particle, final Wall wall) {
@@ -48,16 +65,24 @@ public class GranularForce implements Force {
             final V2d deltaVel = particle.getVelocity(); //e.
 
             final V2d normalForce = normalDirection.scale(KN * E - Gamma * E);
-            final V2d tangentialForce0 = tangentialDirection.scale(KT * E * deltaVel.dot(tangentialDirection));
-            final V2d tangentialForce = tangentialDirection.scale(Mu * normalForce.module() * Math.signum(deltaVel.dot(tangentialDirection)));
+            final V2d tangentialForce0 = tangentialDirection.scale(-KT * E * deltaVel.dot(tangentialDirection));
+            final V2d tangentialForce = tangentialDirection.scale(-Mu * normalForce.module() * Math.signum(deltaVel.dot(tangentialDirection)));
 
-            particle.setTangentialForce(tangentialForce0);
-            particle.setNormalForce(normalForce);
+            // if (counter-- > 0) {
+            //     System.out.println(normalForce);
+            //     System.out.println(tangentialForce);
+            //     System.out.println(tangentialForce0);
+            // }
+
+            // particle.setTangentialForce(tangentialForce0);
+            // particle.setNormalForce(normalForce);
 
             return normalForce.add(tangentialForce0);
         }
-        particle.setTangentialForce(new V2d(0, 0));
-        particle.setNormalForce(new V2d(0, 0));
+        // if (particle.getTangentialForce().getX() == 0 && particle.getTangentialForce().getY() == 0) {
+        //     particle.setTangentialForce(new V2d(0, 0));
+        //     particle.setNormalForce(new V2d(0, 0));
+        // }
         return new V2d(0, 0);
     }
 }
