@@ -13,6 +13,8 @@ public class TheParticle implements Particle {
     private final V2d acceleration;
     private final V2d prevAcceleration;
     private double totalNormalForce = 0;
+    private V2d tangentialForce = new V2d(0, 0);
+    private V2d normalForce = new V2d(0, 0);
 
 
     public TheParticle(String id, V2d position, V2d velocity, V2d acceleration, V2d prevAcceleration, double radius, double mass) {
@@ -68,6 +70,19 @@ public class TheParticle implements Particle {
         this.totalNormalForce = totalNormalForce;
     }
 
+    public TheParticle(String id, double x, double y, double vx, double vy, double ax, double ay, double pax, double pay, double radius, double mass, double totalNormalForce, V2d nf, V2d tf) {
+        this.id = id;
+        this.position = new V2d(x, y);
+        this.velocity = new V2d(vx, vy);
+        this.acceleration = new V2d(ax, ay);
+        this.prevAcceleration = new V2d(pax, pay);
+        this.radius = radius;
+        this.mass = mass;
+        this.totalNormalForce = totalNormalForce;
+        this.normalForce = nf;
+        this.tangentialForce = tf;
+    }
+
     @Override
     public String getId() {
         return id;
@@ -92,10 +107,10 @@ public class TheParticle implements Particle {
                 df.format(position.getY()),
                 df.format(velocity.getX()),
                 df.format(velocity.getY()),
-                df.format(acceleration.getX()),
-                df.format(acceleration.getY()),
-                df.format(prevAcceleration.getX()),
-                df.format(prevAcceleration.getY()),
+                df.format(tangentialForce.getX()),
+                df.format(tangentialForce.getY()),
+                df.format(normalForce.getX()),
+                df.format(normalForce.getY()),
                 df.format(getRadius()),
                 df.format(getMass()),
                 df.format(this.getNormalForce()/(2 * 3.14159265 * radius * 60))
@@ -206,6 +221,22 @@ public class TheParticle implements Particle {
 
     public double getNormalForce() {
         return totalNormalForce;
+    }
+
+    public void setTangentialForce(V2d tf) {
+        this.tangentialForce = tf;
+    }
+
+    public void setNormalForce(V2d nf) {
+        this.normalForce = nf;
+    }
+
+    public V2d getTangentialForce() {
+        return this.tangentialForce;
+    }
+
+    public V2d getNormalForceVec() {
+        return this.normalForce;
     }
 
 }

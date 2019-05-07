@@ -102,7 +102,7 @@ public class GranularSimulation implements TimeDrivenSimulation<TheParticle, Gra
     }
 
     private double getYAcceleration(@NotNull TheParticle particle) {
-        return G + getForce(particle).getY() / particle.getMass();
+        return getForce(particle).getY() / particle.getMass();
     }
 
     private TheParticle move(@NotNull TheParticle particle) {
@@ -135,7 +135,8 @@ public class GranularSimulation implements TimeDrivenSimulation<TheParticle, Gra
 
         // Update particle with approximated speed
         TheParticle result = new TheParticle(particle.getId(), nRx, nRy, nVx, nVy, fAx, fAy, ax, ay,
-            particle.getRadius(), particle.getMass(), particle.getNormalForce());
+            particle.getRadius(), particle.getMass(), particle.getNormalForce(),
+            particle.getNormalForceVec(), particle.getTangentialForce());
 
         // did it flow?
         if (particle.getPosition().getY() > 0 && nRy <= 0) {
