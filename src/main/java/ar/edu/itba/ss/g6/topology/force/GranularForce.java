@@ -15,7 +15,7 @@ public class GranularForce implements Force {
         this.Mu = Mu;
         this.Gamma = Gamma;
         this.KN = 10 * 10 * 10 * 10 * 10; // N/m
-        this.KT = Mu;
+        this.KT = 2 * this.KN;
     }
 
     public V2d getForce(final TheParticle particle, final TheParticle otherParticle) {
@@ -51,8 +51,13 @@ public class GranularForce implements Force {
             final V2d tangentialForce0 = tangentialDirection.scale(KT * E * deltaVel.dot(tangentialDirection));
             final V2d tangentialForce = tangentialDirection.scale(Mu * normalForce.module() * Math.signum(deltaVel.dot(tangentialDirection)));
 
+            particle.setTangentialForce(tangentialForce0);
+            particle.setNormalForce(normalForce);
+
             return normalForce.add(tangentialForce0);
         }
+        particle.setTangentialForce(new V2d(0, 0));
+        particle.setNormalForce(new V2d(0, 0));
         return new V2d(0, 0);
     }
 }
