@@ -181,7 +181,7 @@ public class TP5 {
 
     private static void writeStatsToFile(CommandLineOptions values, double flow[], double totalKE[], double stabilizeTime) {
         Path output = values.getStatsFile();
-        output = Paths.get(output.toString() + "-stab-" +Double.toString(stabilizeTime));
+        output = Paths.get(output.toString() + "-stats-" +Double.toString(stabilizeTime) + ".tsv");
         try (BufferedWriter out = Files.newBufferedWriter(output, Charset.defaultCharset())) {
             for (int i = 0; i < Math.min(flow.length, totalKE.length); i++) {
                 out.write(String.format("%d\t%e\t%e\n", i, flow[i], totalKE[i]));
