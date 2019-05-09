@@ -4,20 +4,20 @@ import ar.edu.itba.ss.g6.topology.geometry.Wall;
 import ar.edu.itba.ss.g6.topology.particle.TheParticle;
 import ar.edu.itba.ss.g6.topology.vector.V2d;
 
-import java.util.Scanner;
+// import java.util.Scanner;
 
 public class GranularForce implements Force {
 
-    private final double Mu;
+    // private final double Mu;
     private final double Gamma;
     private final double KN;
     private final double KT;
 
     public GranularForce(double Mu, double Gamma) {
-        this.Mu = Mu;
+        // this.Mu = Mu;
         this.Gamma = Gamma;
         this.KN = 10 * 10 * 10 * 10 * 10; // N/m
-        this.KT = 2 * this.KN;
+        this.KT = Mu;
     }
 
     public V2d getForce(final TheParticle particle, final TheParticle otherParticle) {
@@ -30,7 +30,7 @@ public class GranularForce implements Force {
             final V2d deltaVel = otherParticle.getVelocity().substract(particle.getVelocity());
             final V2d normalForce = normalDirection.scale(KN * E - Gamma * E);
             final V2d tangentialDirection = new V2d(-normalDirection.y, normalDirection.x);
-            final V2d tangentialForce = tangentialDirection.scale(Mu * normalForce.module() * Math.signum(deltaVel.dot(tangentialDirection)));
+            // final V2d tangentialForce = tangentialDirection.scale(Mu * normalForce.module() * Math.signum(deltaVel.dot(tangentialDirection)));
             final V2d tangentialForce0 = tangentialDirection.scale(KT * E * deltaVel.dot(tangentialDirection));
 
             // if (counter-- > 0) {
@@ -66,7 +66,7 @@ public class GranularForce implements Force {
 
             final V2d normalForce = normalDirection.scale(KN * E - Gamma * E);
             final V2d tangentialForce0 = tangentialDirection.scale(-KT * E * deltaVel.dot(tangentialDirection));
-            final V2d tangentialForce = tangentialDirection.scale(-Mu * normalForce.module() * Math.signum(deltaVel.dot(tangentialDirection)));
+            // final V2d tangentialForce = tangentialDirection.scale(-Mu * normalForce.module() * Math.signum(deltaVel.dot(tangentialDirection)));
 
             // if (counter-- > 0) {
             //     System.out.println(normalForce);
