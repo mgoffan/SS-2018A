@@ -7,10 +7,10 @@ const STREET_LENGTH = 100
 		, STREETS = 3
 		, CAR_LENGTH = 5.26
 		, CAR_WIDTH = 1.76
-		, N = 30
-		, DESIRED_VELOCITY = 8.333
+		, N = 14
+		, DESIRED_VELOCITY = 12//8.333
 		, REACTION_TIME = 1.6
-		, MAXIMUM_ACCELERATION = 0.73
+		, MAXIMUM_ACCELERATION = 1.4//0.73
 		, DESIRED_DECELERATION = 1.67
 		, ACCELERATION_EXPONENT = 4
 		, JAM_DISTANCE_0 = 2
@@ -166,7 +166,7 @@ const sForStreet = street => car => {
 		}
 		// assert(STREETS * STREET_LENGTH / 2 > car.x + car.length, `car[id = ${car.id}].x = ${car.x}, ${STREETS * STREET_LENGTH / 2}`);
 		// debug.push(`s2(car = ${car.id}) = ${stoplight.x} - ${car.x} - ${car.length}`);
-		return stoplight.x - car.x - car.length;
+		return x - car.x - car.length;
 	}
 	if (car.next.x > car.x) {
 		// assert(car.next.x - car.x - car.length > 0);
@@ -202,14 +202,15 @@ const isStoplightOn = s => sl => {
 streets.forEach(s => {
 	const setCarTargetToStoplight = sl => {
 		/// stoplight is on before starting
-		const idx = s.cars.findIndex(c => c.x > sl.x);
+		const x = s.direction === 'x' ? sl.x : sl.y;
+		const idx = s.cars.findIndex(c => c.x > x);
 		const desiredIndex = (() => {
 			if (~idx) return idx - 1 < 0 ? s.cars.length - 1 : idx - 1;
 			return s.cars.length - 1;
 		})();
 		s.cars[desiredIndex].prevNext = s.cars[desiredIndex].next.id;
 		s.cars[desiredIndex].next = sl.id;
-		console.log(chalk.green(`\nSTOPLIGHT ${sl.id} is ON in direction ${s.direction} before start at t=${-sl.phi % P} on car[id = ${s.cars[desiredIndex].id}] at index ${desiredIndex}, chased = ${s.cars[desiredIndex].prevNext}`));
+		console.log(chalk.green(`STOPLIGHT ${sl.id} is ON in direction ${s.direction} before start at t=${-sl.phi % P} on car[id = ${s.cars[desiredIndex].id}] at index ${desiredIndex}, chased = ${s.cars[desiredIndex].prevNext}`));
 	};
 	s.stoplights.map(id => stoplightRepo[id]).filter(isStoplightOn(s)).forEach(setCarTargetToStoplight);
 });
@@ -220,9 +221,10 @@ streets.forEach(s => {
 		console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}]`);
 	});
 });
+console.log(chalk.underline('Begin'));
 
 let maxSpeed = 0;
-bar.start(DURATION, 0);
+// bar.start(DURATION, 0);
 for (let time = 0; time < DURATION; time += TIME_STEP) {
 	streets.forEach(street => {
 		street.stoplights.map(id => stoplightRepo[id]).forEach(sl => {
@@ -236,7 +238,7 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 			})();
 			if (isOn) {
 				/// stoplight turned on
-				console.log(chalk.green(`\nSTOPLIGHT ${sl.id}${street.direction} is ON`));
+				console.log(chalk.green(`STOPLIGHT ${sl.id} in direction ${street.direction} is ON at t=${time}`));
 				const idx = street.cars.findIndex(c => {
 					if (street.direction === 'x') return c.x > sl.x;
 					return c.x > sl.y;
@@ -252,10 +254,16 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 				}
 				street.cars[desiredIndex].prevNext = street.cars[desiredIndex].next.id;
 				street.cars[desiredIndex].next = sl.id;
+				streets.forEach(s => {
+					console.log(`Street ${s.id} direction ${s.direction}`);
+					s.cars.forEach(c => {
+						console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}]`);
+					});
+				});
 				// console.log(chalk.green(`\nSTOPLIGHT ${sl.id} ON at t=${time} on car[id = ${street.cars[desiredIndex].id}] at index ${desiredIndex}, chases = ${sl.id}, chased = ${street.cars[desiredIndex].prevNext}, idx = ${desiredIndex}`));
 			} else if (isOff) {
 				/// stoplight turned off
-				console.log(chalk.green(`\nSTOPLIGHT ${sl.id}${street.direction} is OFF`));
+				console.log(chalk.red(`STOPLIGHT ${sl.id} in direction ${street.direction} is OFF at t=${time}`));
 				const carExpectingOtherStoplight = street.cars.find(c => c.shouldFollow);
 				if (carExpectingOtherStoplight) {
 					if (carExpectingOtherStoplight.shouldFollow === sl.id) {
@@ -275,6 +283,12 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 				}
 				// console.log(chalk.red(`\nSTOPLIGHT ${sl.id} OFF at t=${time} on car[id = ${car.id}], chases = ${car.prevNext}`));
 				car.next = street.cars.find(c => c.id === car.prevNext);
+				streets.forEach(s => {
+					console.log(`Street ${s.id} direction ${s.direction}`);
+					s.cars.forEach(c => {
+						console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}]`);
+					});
+				});
 			}
 		});
 	});
@@ -336,10 +350,10 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 	if (time % (1 / FPS) < TIME_STEP) {
 		ovitoXYZExporter(streets, time + TIME_STEP);
 	}
-	bar.update(time);
+	// bar.update(time);
 }
 
 console.log(`\nMax Speed = ${maxSpeed}`);
 
 outputStream.end();
-bar.stop();
+// bar.stop();
