@@ -1,5 +1,6 @@
 const fs = require('fs')
 		, assert = require('assert')
+		, chalk = require('chalk')
 		, CLIProgress = require('cli-progress');
 
 const STREET_LENGTH = 100
@@ -20,9 +21,20 @@ const STREET_LENGTH = 100
 		, DURATION = 5 * MINUTES_TO_SECONDS
 		, RUN_ID = Date.now() % 1000
 		, OUTPUT_FILE = `./out/output-${RUN_ID}.xyz`
-		, DEBUG = 0
 		, P = 30
-		, STOPLIGHT_ID = 'stoplight';
+		, stoplights = [{
+			phi: 0,
+			id: 's0',
+			x: STREETS * STREET_LENGTH / 3
+		}, {
+			phi: 15,
+			id: 's1',
+			x: STREETS * STREET_LENGTH / 3 * 2
+		}]
+		, stoplightRepo = stoplights.reduce((memo, val) => {
+			memo[val.id] = val;
+			return memo;
+		}, {});
 
 const outputStream = fs.createWriteStream(OUTPUT_FILE);
 const bar = new CLIProgress.Bar({}, CLIProgress.Presets.shades_classic);
@@ -89,20 +101,22 @@ const ovitoXYZExporter = (cars, t) => {
 
 ovitoXYZExporter(cars, 0);
 
-// start the progress bar with a total value of 200 and start value of 0
-bar.start(DURATION, 0);
-
 const debug = [];
 
 const s = car => {
-	if (car.next === STOPLIGHT_ID) {
-		if (STREETS * STREET_LENGTH / 2 < car.x + car.length) {
-			debug.push(`s1(car = ${car.id}) = ${car.prevNext.x} - ${car.x} - ${car.length}`);
+	if (typeof(car.next) === 'string') {
+		const stoplight = stoplightRepo[car.next];
+		if (stoplight.x < car.x + car.length) {
+			if (!cars[car.prevNext]) {
+				console.log(stoplight);
+				console.log(car);
+			}
+			debug.push(`s1(car = ${car.id}) = ${cars[car.prevNext].x} - ${car.x} - ${car.length}`);
 			return cars[car.prevNext].x - car.x - car.length;
 		}
 		// assert(STREETS * STREET_LENGTH / 2 > car.x + car.length, `car[id = ${car.id}].x = ${car.x}, ${STREETS * STREET_LENGTH / 2}`);
-		debug.push(`s2(car = ${car.id}) = ${STREETS * STREET_LENGTH / 2} - ${car.x} - ${car.length}`);
-		return STREETS * STREET_LENGTH / 2 - car.x - car.length;
+		debug.push(`s2(car = ${car.id}) = ${stoplight.x} - ${car.x} - ${car.length}`);
+		return stoplight.x - car.x - car.length;
 	}
 	if (car.next.x > car.x) {
 		// assert(car.next.x - car.x - car.length > 0);
@@ -114,7 +128,7 @@ const s = car => {
 	return STREETS * STREET_LENGTH + car.next.x - car.x - car.length;
 }
 const sstar = car => {
-	if (car.next === STOPLIGHT_ID) {
+	if (typeof(car.next) === 'string') {
 		debug.push(`sstar1(car = ${car.id}) = ${car.jamDistance0} + ${car.jamDistance1} * Math.sqrt(Math.abs(${car.vx} / ${car.desiredVelocity})) + ${car.reactionTime} * ${car.vx} + ${car.vx} * (${car.vx} - 0) / 2 * Math.sqrt(${car.maximumAcceleration} * ${car.desiredDeceleration})`);
 		return car.jamDistance0 + car.jamDistance1 * Math.sqrt(Math.abs(car.vx / car.desiredVelocity)) + car.reactionTime * car.vx + car.vx * (car.vx - 0) / 2 * Math.sqrt(car.maximumAcceleration * car.desiredDeceleration);
 	}
@@ -128,27 +142,55 @@ const acceleration = car => {
 	return car.maximumAcceleration * (1 - (car.vx / car.desiredVelocity) ** ACCELERATION_EXPONENT - (_sstar / _s) ** 2);
 };
 let maxSpeed = 0;
+stoplights.filter(s => s.phi % P !== 0).forEach(sl => {
+	/// stoplight is on before starting
+	const idx = cars.findIndex(c => c.x > sl.x);
+	const desiredIndex = (() => {
+		if (~idx) return idx - 1 < 0 ? cars.length - 1 : idx - 1;
+		return cars.length - 1;
+	})();
+	cars[desiredIndex].prevNext = cars[desiredIndex].next.id;
+	cars[desiredIndex].next = sl.id;
+	console.log(`\nSTOPLIGHT ${sl.id} is ON before start at t=${-sl.phi % P} on car[id = ${cars[desiredIndex].id}] at index ${desiredIndex}`);
+});
+cars.forEach(c => {
+	console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id}`);
+})
+bar.start(DURATION, 0);
 for (let time = 0; time < DURATION; time += TIME_STEP) {
-	if (Math.floor(time / P) % 2 === 0 && Math.floor((time - TIME_STEP) / P) % 2 !== 0) {
-		/// stoplight turned on
-		const idx = cars.findIndex(c => c.x > STREET_LENGTH * STREETS / 2);
-		const desiredIndex = (() => {
-			if (~idx) return idx - 1 < 0 ? cars.length - 1 : idx - 1;
-			return cars.length - 1;
-		})();
-		cars[desiredIndex].prevNext = cars[desiredIndex].next.id;
-		cars[desiredIndex].next = STOPLIGHT_ID;
-		console.log(`STOPLIGHT ON at t=${time} on car[id = ${cars[desiredIndex].id}] at index ${desiredIndex}`);
-	} else if (Math.floor(time / P) % 2 !== 0 && Math.floor((time - TIME_STEP) / P) % 2 === 0) {
-		/// stoplight turned off
-		const car = cars.find(c => c.next === STOPLIGHT_ID);
-		console.log(`STOPLIGHT OFF at t=${time} on car[id = ${car.id}]`);
-		car.next = cars[car.prevNext];
-	}
+	stoplights.forEach(sl => {
+		if (Math.floor((time + sl.phi) / P) % 2 === 0 && Math.floor((time - TIME_STEP + sl.phi) / P) % 2 !== 0) {
+			/// stoplight turned on
+			const idx = cars.findIndex(c => c.x > sl.x);
+			const desiredIndex = (() => {
+				if (~idx) return idx - 1 < 0 ? cars.length - 1 : idx - 1;
+				return cars.length - 1;
+			})();
+			cars[desiredIndex].prevNext = cars[desiredIndex].next.id;
+			cars[desiredIndex].next = sl.id;
+			console.log(chalk.green(`\nSTOPLIGHT ${sl.id} ON at t=${time} on car[id = ${cars[desiredIndex].id}] at index ${desiredIndex}, chases = ${sl.id}, chased = ${cars[desiredIndex].next.id}`));
+			cars.forEach(c => {
+				console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id}`);
+			})
+		} else if (Math.floor((time + sl.phi) / P) % 2 !== 0 && Math.floor((time - TIME_STEP + sl.phi) / P) % 2 === 0) {
+			/// stoplight turned off
+			const car = cars.find(c => c.next === sl.id);
+			// if (!car) {
+			// 	console.log(`\nt = ${time}, ${JSON.stringify(sl)}`);
+			// 	return;
+				
+			// }
+			console.log(chalk.red(`\nSTOPLIGHT ${sl.id} OFF at t=${time} on car[id = ${car.id}], chases = ${cars[car.prevNext].id}`));
+			car.next = cars[car.prevNext];
+			cars.forEach(c => {
+				console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id}`);
+			})
+		}
+	});
 
 	const nextCars = cars.map(c => {
 		debug.push('');
-		debug.push(`car ${c.id} => ${c.next === STOPLIGHT_ID ? STOPLIGHT_ID : c.next.id}`);
+		debug.push(`car ${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id}`);
 		const ax = acceleration(c);
 		const nx = (c.x + c.vx * TIME_STEP + (2 / 3 * ax - 1 / 6 * c.pax) * TIME_STEP * TIME_STEP) % (STREETS * STREET_LENGTH);
 		const predictedParticle = {
@@ -169,7 +211,7 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 			fs.writeFileSync(`./out/error-${RUN_ID}.log`, debug.join('\n'));
 			const carOutput = cars.map(c => ({
 				...c,
-				next: c.next === STOPLIGHT_ID ? STOPLIGHT_ID : c.next.id
+				next: typeof(c.next) === 'string' ? c.next : c.next.id
 			}));
 			fs.writeFileSync(`./out/cars-${RUN_ID}.json`, JSON.stringify(carOutput, null, 2));
 			outputStream.end();
@@ -191,7 +233,7 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 	});
 	cars.forEach((c, i) => {
 		cars[i] = nextCars[i];
-		if (cars[i].next === STOPLIGHT_ID) return;
+		if (typeof(cars[i].next) === 'string') return;
 		cars[i].next = nextCars[(i + 1) % nextCars.length];
 		if (cars[i].vx > maxSpeed) {
 			maxSpeed = cars[i].vx;
