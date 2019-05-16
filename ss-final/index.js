@@ -17,12 +17,13 @@ const STREET_LENGTH = 100
 		, FPS = 60
 		, DURATION = 60
 		, RUN_ID = Date.now() % 1000
-		, OUTPUT_FILE = `output-${RUN_ID}.xyz`;
+		, OUTPUT_FILE = `./out/output-${RUN_ID}.xyz`
+		, DEBUG = 0;
 
 const outputStream = fs.createWriteStream(OUTPUT_FILE);
 const bar = new CLIProgress.Bar({}, CLIProgress.Presets.shades_classic);
 
-const cars = Array.from({ length: N }).map((_, i) => ({
+const generateCarGroup = () => Array.from({ length: N }).map((_, i) => ({
 	id: i,
 	length: CAR_LENGTH,
 	width: CAR_WIDTH,
@@ -39,7 +40,23 @@ const cars = Array.from({ length: N }).map((_, i) => ({
 	pax: 0,
 	pay: 0
 }));
-cars.sort((a, b) => a.x - b.x);
+
+const every = (coll, fn) => coll.reduce((memo, val, i) => memo && fn(val, i), true);
+const isCarGroupOK = cars => every(cars, (car, i) => every(cars.slice(0, i), c => car.x - c.x - c.length - JAM_DISTANCE_0 > 0));
+
+const cars = (() => {
+	let n = 10000;
+	do {
+		const carGroup = generateCarGroup();
+		carGroup.sort((a, b) => a.x - b.x);
+		if (isCarGroupOK(carGroup))
+			return carGroup;
+	} while (n-- > 0);
+	return null;
+})();
+if (!cars) {
+	throw new Error('Could not generate car group');
+}
 
 cars.forEach((c, i) => {
 	c.next = cars[(i + 1) % cars.length];
@@ -56,9 +73,22 @@ FPS = ${FPS}
 Capture every = ${captureEvery}
 `);
 
-const s = car => car.next.x - car.x - car.length;
-const sstar = car => car.jamDistance0 + car.jamDistance1 * Math.sqrt(car.vx / car.desiredVelocity) + car.reactionTime * car.vx + car.vx * (car.vx - car.next.vx) / 2 * Math.sqrt(car.maximumAcceleration * car.desiredDeceleration);
-const acceleration = car => car.maximumAcceleration * (1 - (car.vx / car.desiredVelocity) ** ACCELERATION_EXPONENT - (sstar(car) / s(car)) ** 2);
+const debug = [];
+
+const s = car => {
+	DEBUG && debug.push(`s(car = ${car.id}) = ${car.next.x} - ${car.x} - ${car.length}`);
+	return car.next.x - car.x - car.length;
+}
+const sstar = car => {
+	DEBUG && debug.push(`sstar(car = ${car.id}) = ${car.jamDistance0} + ${car.jamDistance1} * Math.sqrt(Math.abs(${car.vx} / ${car.desiredVelocity})) + ${car.reactionTime} * ${car.vx} + ${car.vx} * (${car.vx} - ${car.next.vx}) / 2 * Math.sqrt(${car.maximumAcceleration} * ${car.desiredDeceleration})`);
+	return car.jamDistance0 + car.jamDistance1 * Math.sqrt(Math.abs(car.vx / car.desiredVelocity)) + car.reactionTime * car.vx + car.vx * (car.vx - car.next.vx) / 2 * Math.sqrt(car.maximumAcceleration * car.desiredDeceleration);
+}
+const acceleration = car => {
+	const _sstar = sstar(car);
+	const _s = s(car);
+	DEBUG && debug.push(`ax(card = ${car.id}) = ${car.maximumAcceleration} * (1 - (${car.vx} / ${car.desiredVelocity}) ** ${ACCELERATION_EXPONENT} - (${_sstar} / ${_s}) ** 2)`);
+	return car.maximumAcceleration * (1 - (car.vx / car.desiredVelocity) ** ACCELERATION_EXPONENT - (_sstar / _s) ** 2);
+};
 
 
 const ovitoXYZExporter = (cars, t) => {
@@ -78,6 +108,8 @@ bar.start(DURATION, 0);
 
 for (let time = 0; time < DURATION; time += TIME_STEP) {
 	const nextCars = cars.map(c => {
+		DEBUG && debug.push('');
+		DEBUG && debug.push(`car ${c.id} => ${c.next.id}`);
 		const ax = acceleration(c);
 		const nx = (c.x + c.vx * TIME_STEP + (2 / 3 * ax - 1 / 6 * c.pax) * TIME_STEP * TIME_STEP) % (STREETS * STREET_LENGTH);
 		const predictedParticle = {
@@ -87,6 +119,7 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 			vx: c.vx + 3 / 2 * ax * TIME_STEP - 1 / 2 * c.pax * TIME_STEP,
 			vy: 0 
 		};
+		DEBUG && debug.push('predict');
 
 		const nax = acceleration(predictedParticle);
 		const nvx = c.vx  + 1 / 3 * nax * TIME_STEP + 5 / 6 * ax * TIME_STEP - 1 / 6 * c.pax * TIME_STEP;
@@ -94,7 +127,8 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 		const values = [ax, nax, nvx, nx]
 		if (values.map(isNaN).find(Boolean)) {
 			console.log(values);
-			console.log(cars);
+			fs.writeFileSync(`./out/error-${RUN_ID}.log`, debug.join('\n'));
+			fs.writeFileSync(`./out/cars-${RUN_ID}.json`, JSON.stringify(cars.map(c => ({ ...c, next: c.next.id })), null, 2));
 			outputStream.end();
 			fs.unlinkSync(OUTPUT_FILE);
 			process.exit(1);
