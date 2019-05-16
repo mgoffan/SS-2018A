@@ -7,7 +7,7 @@ const STREET_LENGTH = 100
 		, STREETS = 3
 		, CAR_LENGTH = 5.26
 		, CAR_WIDTH = 1.76
-		, N = 14
+		, N = 4
 		, DESIRED_VELOCITY = 8.333
 		, REACTION_TIME = 1.6
 		, MAXIMUM_ACCELERATION = 0.73
@@ -116,7 +116,7 @@ Capture every = ${captureEvery}
 `);
 
 const ovitoXYZExporter = (streets, t) => {
-	const totalParticles = streets.reduce((acc, v) => acc + v.cars.length, 0) + streets.length * 2;
+	const totalParticles = streets.reduce((acc, v) => acc + v.cars.length, 0) + streets.length * 2 + stoplights.length;
 	outputStream.write(`${totalParticles}\n`);
 	const stoplightState = streets.map(st => {
 		const str = st.stoplights.map(id => stoplightRepo[id]).map(s => {
@@ -127,7 +127,13 @@ const ovitoXYZExporter = (streets, t) => {
 		return `Street ${st.id}: [${str}]`;
 	}).join(', ')
 	outputStream.write(`t = ${t.toFixed(6)}, ${stoplightState}\n`);
-	/// street endpoints
+	stoplights.forEach((sl, i) => {
+		if (Math.floor((t - sl.phi) / P) % 2 === 0) {
+			outputStream.write([6000 + i * 2, sl.x.toFixed(6), sl.y.toFixed(6), (15).toFixed(6), (0).toFixed(6), (5).toFixed(6), (5).toFixed(6), (1).toFixed(6)].join('\t') + '\n');
+		} else {
+			outputStream.write([6000 + i * 2, sl.x.toFixed(6), sl.y.toFixed(6), (15).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (5).toFixed(6)].join('\t') + '\n');
+		}
+	});
 	streets.forEach((s, i) => {
 		if (s.direction === 'x') {
 			outputStream.write([5000 + i * 2 + 1, (0).toFixed(6)                      , s.y.toFixed(6)                      , s.y.toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
@@ -135,7 +141,7 @@ const ovitoXYZExporter = (streets, t) => {
 		} else {
 			outputStream.write([5000 + i * 2 + 1, s.x.toFixed(6)                      , (0).toFixed(6)                      , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
 			outputStream.write([5000 + i * 2 + 2, s.x.toFixed(6)                      , (STREETS * STREET_LENGTH).toFixed(6), (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');	
-		}
+		}	
 		s.cars.forEach(c => {
 			if (s.direction === 'x') {
 				outputStream.write([c.id, c.x.toFixed(6), s.y.toFixed(6), c.vx.toFixed(6), c.vy.toFixed(6), (c.length / 2).toFixed(6), (c.length / 2).toFixed(6), (c.width / 2).toFixed(6)].join('\t') + '\n');
