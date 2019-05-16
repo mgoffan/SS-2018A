@@ -151,10 +151,10 @@ stoplights.filter(s => s.phi % P !== 0).forEach(sl => {
 	})();
 	cars[desiredIndex].prevNext = cars[desiredIndex].next.id;
 	cars[desiredIndex].next = sl.id;
-	console.log(`\nSTOPLIGHT ${sl.id} is ON before start at t=${-sl.phi % P} on car[id = ${cars[desiredIndex].id}] at index ${desiredIndex}`);
+	console.log(`\nSTOPLIGHT ${sl.id} is ON before start at t=${-sl.phi % P} on car[id = ${cars[desiredIndex].id}] at index ${desiredIndex}, chased = ${cars[desiredIndex].prevNext}`);
 });
 cars.forEach(c => {
-	console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id}`);
+	console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}]`);
 })
 bar.start(DURATION, 0);
 for (let time = 0; time < DURATION; time += TIME_STEP) {
@@ -168,9 +168,9 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 			})();
 			cars[desiredIndex].prevNext = cars[desiredIndex].next.id;
 			cars[desiredIndex].next = sl.id;
-			console.log(chalk.green(`\nSTOPLIGHT ${sl.id} ON at t=${time} on car[id = ${cars[desiredIndex].id}] at index ${desiredIndex}, chases = ${sl.id}, chased = ${cars[desiredIndex].next.id}`));
+			console.log(chalk.green(`\nSTOPLIGHT ${sl.id} ON at t=${time} on car[id = ${cars[desiredIndex].id}] at index ${desiredIndex}, chases = ${sl.id}, chased = ${cars[desiredIndex].prevNext}, idx = ${desiredIndex}`));
 			cars.forEach(c => {
-				console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id}`);
+				console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}]`);
 			})
 		} else if (Math.floor((time + sl.phi) / P) % 2 !== 0 && Math.floor((time - TIME_STEP + sl.phi) / P) % 2 === 0) {
 			/// stoplight turned off
@@ -183,7 +183,7 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 			console.log(chalk.red(`\nSTOPLIGHT ${sl.id} OFF at t=${time} on car[id = ${car.id}], chases = ${cars[car.prevNext].id}`));
 			car.next = cars[car.prevNext];
 			cars.forEach(c => {
-				console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id}`);
+				console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id}  [${c.prevNext}]`);
 			})
 		}
 	});
