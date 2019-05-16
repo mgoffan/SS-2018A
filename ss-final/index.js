@@ -1,4 +1,5 @@
 const fs = require('fs')
+		, assert = require('assert')
 		, CLIProgress = require('cli-progress');
 
 const STREET_LENGTH = 100
@@ -15,10 +16,13 @@ const STREET_LENGTH = 100
 		, JAM_DISTANCE_1 = 0
 		, TIME_STEP = 0.01
 		, FPS = 60
-		, DURATION = 60
+		, MINUTES_TO_SECONDS = 60
+		, DURATION = 5 * MINUTES_TO_SECONDS
 		, RUN_ID = Date.now() % 1000
 		, OUTPUT_FILE = `./out/output-${RUN_ID}.xyz`
-		, DEBUG = 0;
+		, DEBUG = 0
+		, P = 30
+		, STOPLIGHT_ID = 'stoplight';
 
 const outputStream = fs.createWriteStream(OUTPUT_FILE);
 const bar = new CLIProgress.Bar({}, CLIProgress.Presets.shades_classic);
@@ -73,24 +77,6 @@ FPS = ${FPS}
 Capture every = ${captureEvery}
 `);
 
-const debug = [];
-
-const s = car => {
-	DEBUG && debug.push(`s(car = ${car.id}) = ${car.next.x} - ${car.x} - ${car.length}`);
-	return car.next.x - car.x - car.length;
-}
-const sstar = car => {
-	DEBUG && debug.push(`sstar(car = ${car.id}) = ${car.jamDistance0} + ${car.jamDistance1} * Math.sqrt(Math.abs(${car.vx} / ${car.desiredVelocity})) + ${car.reactionTime} * ${car.vx} + ${car.vx} * (${car.vx} - ${car.next.vx}) / 2 * Math.sqrt(${car.maximumAcceleration} * ${car.desiredDeceleration})`);
-	return car.jamDistance0 + car.jamDistance1 * Math.sqrt(Math.abs(car.vx / car.desiredVelocity)) + car.reactionTime * car.vx + car.vx * (car.vx - car.next.vx) / 2 * Math.sqrt(car.maximumAcceleration * car.desiredDeceleration);
-}
-const acceleration = car => {
-	const _sstar = sstar(car);
-	const _s = s(car);
-	DEBUG && debug.push(`ax(card = ${car.id}) = ${car.maximumAcceleration} * (1 - (${car.vx} / ${car.desiredVelocity}) ** ${ACCELERATION_EXPONENT} - (${_sstar} / ${_s}) ** 2)`);
-	return car.maximumAcceleration * (1 - (car.vx / car.desiredVelocity) ** ACCELERATION_EXPONENT - (_sstar / _s) ** 2);
-};
-
-
 const ovitoXYZExporter = (cars, t) => {
 	outputStream.write(`${N}\n`);
 	outputStream.write(`t = ${t.toFixed(6)}\n`);
@@ -106,10 +92,60 @@ ovitoXYZExporter(cars, 0);
 // start the progress bar with a total value of 200 and start value of 0
 bar.start(DURATION, 0);
 
+const debug = [];
+
+const s = car => {
+	if (car.next === STOPLIGHT_ID) {
+		assert(STREETS * STREET_LENGTH / 2 > car.x + car.length);
+		assert(STREETS * STREET_LENGTH / 2 - car.x - car.length > 0)
+		debug.push(`s(car = ${car.id}) = ${STREETS * STREET_LENGTH / 2} - ${car.x} - ${car.length}`);
+		return STREETS * STREET_LENGTH / 2 - car.x - car.length;
+	}
+	if (car.next.x > car.x) {
+		assert(car.next.x - car.x - car.length > 0);
+		debug.push(`s(car = ${car.id}) = ${car.next.x} - ${car.x} - ${car.length}`);
+		return car.next.x - car.x - car.length;
+	}
+	assert(STREETS * STREET_LENGTH + car.next.x - car.x - car.length > 0);
+	debug.push(`s(car = ${car.id}) = ${car.next.x} - ${car.x} - ${car.length}`);
+	return STREETS * STREET_LENGTH + car.next.x - car.x - car.length;
+}
+const sstar = car => {
+	if (car.next === STOPLIGHT_ID) {
+		debug.push(`sstar(car = ${car.id}) = ${car.jamDistance0} + ${car.jamDistance1} * Math.sqrt(Math.abs(${car.vx} / ${car.desiredVelocity})) + ${car.reactionTime} * ${car.vx} + ${car.vx} * (${car.vx} - 0) / 2 * Math.sqrt(${car.maximumAcceleration} * ${car.desiredDeceleration})`);
+		return car.jamDistance0 + car.jamDistance1 * Math.sqrt(Math.abs(car.vx / car.desiredVelocity)) + car.reactionTime * car.vx + car.vx * (car.vx - 0) / 2 * Math.sqrt(car.maximumAcceleration * car.desiredDeceleration);
+	}
+	debug.push(`sstar(car = ${car.id}) = ${car.jamDistance0} + ${car.jamDistance1} * Math.sqrt(${car.vx} / ${car.desiredVelocity}) + ${car.reactionTime} * ${car.vx} + ${car.vx} * (${car.vx} - ${car.next.vx}) / 2 * Math.sqrt(${car.maximumAcceleration} * ${car.desiredDeceleration})`);
+	return car.jamDistance0 + car.jamDistance1 * Math.sqrt(Math.abs(car.vx / car.desiredVelocity)) + car.reactionTime * car.vx + car.vx * (car.vx - car.next.vx) / 2 * Math.sqrt(car.maximumAcceleration * car.desiredDeceleration);
+}
+const acceleration = car => {
+	const _sstar = sstar(car);
+	const _s = s(car);
+	debug.push(`ax(card = ${car.id}) = ${car.maximumAcceleration} * (1 - (${car.vx} / ${car.desiredVelocity}) ** ${ACCELERATION_EXPONENT} - (${_sstar} / ${_s}) ** 2)`);
+	return car.maximumAcceleration * (1 - (car.vx / car.desiredVelocity) ** ACCELERATION_EXPONENT - (_sstar / _s) ** 2);
+};
+let maxSpeed = 0;
 for (let time = 0; time < DURATION; time += TIME_STEP) {
+	if (Math.floor(time / P) % 2 === 0 && Math.floor((time - TIME_STEP) / P) % 2 !== 0) {
+		/// stoplight turned on
+		const idx = cars.findIndex(c => c.x > STREET_LENGTH * STREETS / 2);
+		const desiredIndex = (() => {
+			if (~idx) return idx - 1 < 0 ? cars.length - 1 : idx - 1;
+			return cars.length - 1;
+		})();
+		cars[desiredIndex].prevNext = cars[desiredIndex].next.id;
+		cars[desiredIndex].next = STOPLIGHT_ID;
+		console.log(`STOPLIGHT ON at t=${time} on car[id = ${cars[desiredIndex].id}] at index ${desiredIndex}`);
+	} else if (Math.floor(time / P) % 2 !== 0 && Math.floor((time - TIME_STEP) / P) % 2 === 0) {
+		/// stoplight turned off
+		const car = cars.find(c => c.next === STOPLIGHT_ID);
+		console.log(`STOPLIGHT OFF at t=${time} on car[id = ${car.id}]`);
+		car.next = car.prevNext;
+	}
+
 	const nextCars = cars.map(c => {
-		DEBUG && debug.push('');
-		DEBUG && debug.push(`car ${c.id} => ${c.next.id}`);
+		debug.push('');
+		debug.push(`car ${c.id} => ${c.next === STOPLIGHT_ID ? STOPLIGHT_ID : c.next.id}`);
 		const ax = acceleration(c);
 		const nx = (c.x + c.vx * TIME_STEP + (2 / 3 * ax - 1 / 6 * c.pax) * TIME_STEP * TIME_STEP) % (STREETS * STREET_LENGTH);
 		const predictedParticle = {
@@ -119,7 +155,7 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 			vx: c.vx + 3 / 2 * ax * TIME_STEP - 1 / 2 * c.pax * TIME_STEP,
 			vy: 0 
 		};
-		DEBUG && debug.push('predict');
+		debug.push('predict');
 
 		const nax = acceleration(predictedParticle);
 		const nvx = c.vx  + 1 / 3 * nax * TIME_STEP + 5 / 6 * ax * TIME_STEP - 1 / 6 * c.pax * TIME_STEP;
@@ -128,9 +164,13 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 		if (values.map(isNaN).find(Boolean)) {
 			console.log(values);
 			fs.writeFileSync(`./out/error-${RUN_ID}.log`, debug.join('\n'));
-			fs.writeFileSync(`./out/cars-${RUN_ID}.json`, JSON.stringify(cars.map(c => ({ ...c, next: c.next.id })), null, 2));
+			const carOutput = cars.map(c => ({
+				...c,
+				next: c.next === STOPLIGHT_ID ? STOPLIGHT_ID : c.next.id
+			}));
+			fs.writeFileSync(`./out/cars-${RUN_ID}.json`, JSON.stringify(carOutput, null, 2));
 			outputStream.end();
-			fs.unlinkSync(OUTPUT_FILE);
+			// fs.unlinkSync(OUTPUT_FILE);
 			process.exit(1);
 		}
 
@@ -148,13 +188,19 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 	});
 	cars.forEach((c, i) => {
 		cars[i] = nextCars[i];
+		if (cars[i].next === STOPLIGHT_ID) return;
 		cars[i].next = nextCars[(i + 1) % nextCars.length];
+		if (cars[i].vx > maxSpeed) {
+			maxSpeed = cars[i].vx;
+		}
 	});
 	if (time % (1 / FPS) < TIME_STEP) {
 		ovitoXYZExporter(cars, time + TIME_STEP);
 	}
 	bar.update(time);
 }
+
+console.log(`Max Speed = ${maxSpeed}`);
 
 outputStream.end();
 bar.stop();
