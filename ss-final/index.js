@@ -107,12 +107,13 @@ const s = car => {
 	if (typeof(car.next) === 'string') {
 		const stoplight = stoplightRepo[car.next];
 		if (stoplight.x < car.x + car.length) {
-			if (!cars[car.prevNext]) {
+			const prevNext = cars.find(c => c.id === car.prevNext);
+			if (!prevNext) {
 				console.log(stoplight);
 				console.log(car);
 			}
-			debug.push(`s1(car = ${car.id}) = ${cars[car.prevNext].x} - ${car.x} - ${car.length}`);
-			return cars[car.prevNext].x - car.x - car.length;
+			debug.push(`s1(car = ${car.id}) = ${prevNext.x} - ${car.x} - ${car.length}`);
+			return prevNext.x - car.x - car.length;
 		}
 		// assert(STREETS * STREET_LENGTH / 2 > car.x + car.length, `car[id = ${car.id}].x = ${car.x}, ${STREETS * STREET_LENGTH / 2}`);
 		debug.push(`s2(car = ${car.id}) = ${stoplight.x} - ${car.x} - ${car.length}`);
@@ -166,25 +167,51 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 				if (~idx) return idx - 1 < 0 ? cars.length - 1 : idx - 1;
 				return cars.length - 1;
 			})();
+			if (typeof(cars[desiredIndex].next) === 'string') {
+				cars[desiredIndex].shouldFollow = sl.id;
+				console.log(chalk.green(`\nSTOPLIGHT ${sl.id} ON at t=${time} but all cars are stuck in other stoplight`));
+				// cars.forEach(c => {
+				// 	console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}] [${c.shouldFollow}]`);
+				// });
+				return;
+			}
 			cars[desiredIndex].prevNext = cars[desiredIndex].next.id;
 			cars[desiredIndex].next = sl.id;
 			console.log(chalk.green(`\nSTOPLIGHT ${sl.id} ON at t=${time} on car[id = ${cars[desiredIndex].id}] at index ${desiredIndex}, chases = ${sl.id}, chased = ${cars[desiredIndex].prevNext}, idx = ${desiredIndex}`));
-			cars.forEach(c => {
-				console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}]`);
-			})
+			// cars.forEach(c => {
+			// 	console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}] [${c.shouldFollow}]`);
+			// });
 		} else if (Math.floor((time + sl.phi) / P) % 2 !== 0 && Math.floor((time - TIME_STEP + sl.phi) / P) % 2 === 0) {
 			/// stoplight turned off
+			
+			const carExpectingOtherStoplight = cars.find(c => c.shouldFollow);
+			if (carExpectingOtherStoplight) {
+				if (carExpectingOtherStoplight.shouldFollow === sl.id) {
+					carExpectingOtherStoplight.next = cars.find(c => c.id === car.prevNext);
+					delete carExpectingOtherStoplight.shouldFollow;
+					console.log(chalk.red(`\nSTOPLIGHT ${sl.id} OFF at t=${time}, car ${carExpectingOtherStoplight.id} was to stop, but i'm off, so he'll chase ${carExpectingOtherStoplight.next.id}`));
+					// cars.forEach(c => {
+					// 	console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}] [${c.shouldFollow}]`);
+					// });
+					return;
+				}
+				carExpectingOtherStoplight.next = carExpectingOtherStoplight.shouldFollow;
+				delete carExpectingOtherStoplight.shouldFollow;
+				// console.log(chalk.red(`\nSTOPLIGHT ${sl.id} OFF at t=${time}, car ${carExpectingOtherStoplight.id} was to stop, but i'm off, so he'll chase ${carExpectingOtherStoplight.next.id}`));
+				// return;
+			}
+			
 			const car = cars.find(c => c.next === sl.id);
-			// if (!car) {
-			// 	console.log(`\nt = ${time}, ${JSON.stringify(sl)}`);
-			// 	return;
+			if (!car) {
+				console.log(`\nt = ${time}, ${JSON.stringify(sl)}`);
+				return;
 				
-			// }
+			}
 			console.log(chalk.red(`\nSTOPLIGHT ${sl.id} OFF at t=${time} on car[id = ${car.id}], chases = ${cars[car.prevNext].id}`));
-			car.next = cars[car.prevNext];
-			cars.forEach(c => {
-				console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id}  [${c.prevNext}]`);
-			})
+			car.next = cars.find(c => c.id === car.prevNext);
+			// cars.forEach(c => {
+			// 	console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}] [${c.shouldFollow}]`);
+			// });
 		}
 	});
 
