@@ -8,9 +8,9 @@ const STREET_LENGTH = 100
 		, CAR_LENGTH = 5.26
 		, CAR_WIDTH = 1.76
 		, N = 14
-		, DESIRED_VELOCITY = 12//8.333
+		, DESIRED_VELOCITY = 8.333
 		, REACTION_TIME = 1.6
-		, MAXIMUM_ACCELERATION = 1.4//0.73
+		, MAXIMUM_ACCELERATION = 0.73
 		, DESIRED_DECELERATION = 1.67
 		, ACCELERATION_EXPONENT = 4
 		, JAM_DISTANCE_0 = 2
@@ -120,9 +120,9 @@ const ovitoXYZExporter = (streets, t) => {
 	outputStream.write(`${totalParticles}\n`);
 	const stoplightState = streets.map(st => {
 		const str = st.stoplights.map(id => stoplightRepo[id]).map(s => {
-			const onx = Math.floor((t + s.phi) / P) % 2 === 0;
+			const onx = Math.floor((t - s.phi) / P) % 2 !== 0;
 			if (st.direction === 'x') return `${s.id.toUpperCase()}x is ${onx ? 'ON' : 'OFF'}`;
-			return `${s.id.toUpperCase()}y is ${onx ? 'OFF' : 'ON'}`
+			return `${s.id.toUpperCase()}y is ${onx ? 'OFF' : 'ON'}`;
 		});
 		return `Street ${st.id}: [${str}]`;
 	}).join(', ')
@@ -229,12 +229,12 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 	streets.forEach(street => {
 		street.stoplights.map(id => stoplightRepo[id]).forEach(sl => {
 			const isOn = (() => {
-				if (street.direction === 'x') return Math.floor((time - sl.phi) / P) % 2 === 0 && Math.floor((time - TIME_STEP - sl.phi) / P) % 2 !== 0;
-				return Math.floor((time + sl.phi) / P) % 2 !== 0 && Math.floor((time - TIME_STEP + sl.phi) / P) % 2 === 0;
+				if (street.direction === 'x') return Math.floor((time - (P - sl.phi)) / P) % 2 === 0 && Math.floor((time - TIME_STEP - (P - sl.phi)) / P) % 2 !== 0;
+				return Math.floor((time + (P - sl.phi)) / P) % 2 !== 0 && Math.floor((time - TIME_STEP + (P - sl.phi)) / P) % 2 === 0;
 			})();
 			const isOff = (() => {
-				if (street.direction === 'x') return Math.floor((time - sl.phi) / P) % 2 !== 0 && Math.floor((time - TIME_STEP - sl.phi) / P) % 2 === 0;
-				return Math.floor((time + sl.phi) / P) % 2 === 0 && Math.floor((time - TIME_STEP + sl.phi) / P) % 2 !== 0;
+				if (street.direction === 'x') return Math.floor((time - (P - sl.phi)) / P) % 2 !== 0 && Math.floor((time - TIME_STEP - (P - sl.phi)) / P) % 2 === 0;
+				return Math.floor((time + (P - sl.phi)) / P) % 2 === 0 && Math.floor((time - TIME_STEP + (P - sl.phi)) / P) % 2 !== 0;
 			})();
 			if (isOn) {
 				/// stoplight turned on
@@ -254,12 +254,12 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 				}
 				street.cars[desiredIndex].prevNext = street.cars[desiredIndex].next.id;
 				street.cars[desiredIndex].next = sl.id;
-				streets.forEach(s => {
-					console.log(`Street ${s.id} direction ${s.direction}`);
-					s.cars.forEach(c => {
-						console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}]`);
-					});
-				});
+				// streets.forEach(s => {
+				// 	console.log(`Street ${s.id} direction ${s.direction}`);
+				// 	s.cars.forEach(c => {
+				// 		console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}]`);
+				// 	});
+				// });
 				// console.log(chalk.green(`\nSTOPLIGHT ${sl.id} ON at t=${time} on car[id = ${street.cars[desiredIndex].id}] at index ${desiredIndex}, chases = ${sl.id}, chased = ${street.cars[desiredIndex].prevNext}, idx = ${desiredIndex}`));
 			} else if (isOff) {
 				/// stoplight turned off
@@ -276,13 +276,6 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 					delete carExpectingOtherStoplight.shouldFollow;
 				}
 
-				const otherStoplight = stoplightRepo[street.stoplights[(street.stoplights.indexOf(sl.id) + 1) % street.stoplights.length]];
-				const isOn = (() => {
-					if (street.direction === 'x') return Math.floor((time + otherStoplight.phi) / P) % 2 === 0;
-					return Math.floor((time + otherStoplight.phi) / P) % 2 !== 0;
-				})();
-
-				
 				const car = street.cars.find(c => c.next === sl.id);
 				if (!car) {
 					console.log(`\nt = ${time}, ${JSON.stringify(sl)}`);
@@ -290,12 +283,26 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 				}
 				// console.log(chalk.red(`\nSTOPLIGHT ${sl.id} OFF at t=${time} on car[id = ${car.id}], chases = ${car.prevNext}`));
 				car.next = street.cars.find(c => c.id === car.prevNext);
-				streets.forEach(s => {
-					console.log(`Street ${s.id} direction ${s.direction}`);
-					s.cars.forEach(c => {
-						console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}]`);
-					});
-				});
+
+				const otherStoplight = stoplightRepo[street.stoplights[(street.stoplights.indexOf(sl.id) + 1) % street.stoplights.length]];
+				const otherStoplightIsOn = (() => {
+					if (street.direction === 'x') return Math.floor((time - otherStoplight.phi) / P) % 2 === 0;
+					return Math.floor((time - otherStoplight.phi) / P) % 2 !== 0;
+				})();
+				const x = (() => {
+					if (street.direction === 'x') return otherStoplight.x;
+					return otherStoplight.y;
+				})();
+				if (otherStoplightIsOn && (car.next.x < car.x || car.next.x > x)) {
+					car.next = otherStoplight.id
+				}
+				
+				// streets.forEach(s => {
+				// 	console.log(`Street ${s.id} direction ${s.direction}`);
+				// 	s.cars.forEach(c => {
+				// 		console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}]`);
+				// 	});
+				// });
 			}
 		});
 	});
