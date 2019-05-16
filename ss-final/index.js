@@ -13,7 +13,7 @@ const STREET_LENGTH = 100
 		, DESIRED_DECELERATION = 1.67
 		, ACCELERATION_EXPONENT = 4
 		, JAM_DISTANCE_0 = 2
-		, JAM_DISTANCE_1 = 1
+		, JAM_DISTANCE_1 = 0.3
 		, TIME_STEP = 0.01
 		, FPS = 60
 		, MINUTES_TO_SECONDS = 60
@@ -83,9 +83,7 @@ const ovitoXYZExporter = (cars, t) => {
 	outputStream.write([5000, (0).toFixed(6), (0).toFixed(6), (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
 	outputStream.write([5001, (STREETS * STREET_LENGTH).toFixed(6), (0).toFixed(6), (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
 	cars.forEach(c => {
-		outputStream.write([c.id, c.x.toFixed(6), c.y.toFixed(6), c.vx.toFixed(6), c.vy.toFixed(6), c.length.toFixed(6), c.length.toFixed(6), c.width.toFixed(6)].join('\t') + '\n');
-			
-			// `${c.id}\t${c.x.toFixed(6)}\t${c.y.toFixed(6)}\t${c.vx.toFixed(6)}\t${c.vy.toFixed(6)}\t${c.length.toFixed(6)}\t${c.length.toFixed(6)}\t${c.width.toFixed(6)}\n`);
+		outputStream.write([c.id, c.x.toFixed(6), c.y.toFixed(6), c.vx.toFixed(6), c.vy.toFixed(6), (c.length / 2).toFixed(6), (c.length / 2).toFixed(6), (c.width / 2).toFixed(6)].join('\t') + '\n');
 	});
 };
 
@@ -99,28 +97,28 @@ const debug = [];
 const s = car => {
 	if (car.next === STOPLIGHT_ID) {
 		if (STREETS * STREET_LENGTH / 2 < car.x + car.length) {
-			debug.push(`s(car = ${car.id}) = ${car.prevNext.x} - ${car.x} - ${car.length}`);
-			return car.prevNext.x - car.x - car.length;
+			debug.push(`s1(car = ${car.id}) = ${car.prevNext.x} - ${car.x} - ${car.length}`);
+			return cars[car.prevNext].x - car.x - car.length;
 		}
 		// assert(STREETS * STREET_LENGTH / 2 > car.x + car.length, `car[id = ${car.id}].x = ${car.x}, ${STREETS * STREET_LENGTH / 2}`);
-		debug.push(`s(car = ${car.id}) = ${STREETS * STREET_LENGTH / 2} - ${car.x} - ${car.length}`);
+		debug.push(`s2(car = ${car.id}) = ${STREETS * STREET_LENGTH / 2} - ${car.x} - ${car.length}`);
 		return STREETS * STREET_LENGTH / 2 - car.x - car.length;
 	}
 	if (car.next.x > car.x) {
 		// assert(car.next.x - car.x - car.length > 0);
-		debug.push(`s(car = ${car.id}) = ${car.next.x} - ${car.x} - ${car.length}`);
+		debug.push(`s2(car = ${car.id}) = ${car.next.x} - ${car.x} - ${car.length}`);
 		return car.next.x - car.x - car.length;
 	}
 	// assert(STREETS * STREET_LENGTH + car.next.x - car.x - car.length > 0, `next[id = ${car.next.id}].x = ${car.next.x}, car[id = ${car.id}].x = ${car.x}`);
-	debug.push(`s(car = ${car.id}) = ${car.next.x} - ${car.x} - ${car.length}`);
+	debug.push(`s3(car = ${car.id}) = ${car.next.x} - ${car.x} - ${car.length}`);
 	return STREETS * STREET_LENGTH + car.next.x - car.x - car.length;
 }
 const sstar = car => {
 	if (car.next === STOPLIGHT_ID) {
-		debug.push(`sstar(car = ${car.id}) = ${car.jamDistance0} + ${car.jamDistance1} * Math.sqrt(Math.abs(${car.vx} / ${car.desiredVelocity})) + ${car.reactionTime} * ${car.vx} + ${car.vx} * (${car.vx} - 0) / 2 * Math.sqrt(${car.maximumAcceleration} * ${car.desiredDeceleration})`);
+		debug.push(`sstar1(car = ${car.id}) = ${car.jamDistance0} + ${car.jamDistance1} * Math.sqrt(Math.abs(${car.vx} / ${car.desiredVelocity})) + ${car.reactionTime} * ${car.vx} + ${car.vx} * (${car.vx} - 0) / 2 * Math.sqrt(${car.maximumAcceleration} * ${car.desiredDeceleration})`);
 		return car.jamDistance0 + car.jamDistance1 * Math.sqrt(Math.abs(car.vx / car.desiredVelocity)) + car.reactionTime * car.vx + car.vx * (car.vx - 0) / 2 * Math.sqrt(car.maximumAcceleration * car.desiredDeceleration);
 	}
-	debug.push(`sstar(car = ${car.id}) = ${car.jamDistance0} + ${car.jamDistance1} * Math.sqrt(${car.vx} / ${car.desiredVelocity}) + ${car.reactionTime} * ${car.vx} + ${car.vx} * (${car.vx} - ${car.next.vx}) / 2 * Math.sqrt(${car.maximumAcceleration} * ${car.desiredDeceleration})`);
+	debug.push(`sstar2(car = ${car.id}) = ${car.jamDistance0} + ${car.jamDistance1} * Math.sqrt(${car.vx} / ${car.desiredVelocity}) + ${car.reactionTime} * ${car.vx} + ${car.vx} * (${car.vx} - ${car.next.vx}) / 2 * Math.sqrt(${car.maximumAcceleration} * ${car.desiredDeceleration})`);
 	return car.jamDistance0 + car.jamDistance1 * Math.sqrt(Math.abs(car.vx / car.desiredVelocity)) + car.reactionTime * car.vx + car.vx * (car.vx - car.next.vx) / 2 * Math.sqrt(car.maximumAcceleration * car.desiredDeceleration);
 }
 const acceleration = car => {
