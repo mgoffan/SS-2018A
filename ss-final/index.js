@@ -7,7 +7,7 @@ const STREET_LENGTH = 100
 		, STREETS = 3
 		, CAR_LENGTH = 5.26
 		, CAR_WIDTH = 1.76
-		, N = 14
+		, N = 30
 		, DESIRED_VELOCITY = 8.333
 		, REACTION_TIME = 1.6
 		, MAXIMUM_ACCELERATION = 0.73
@@ -26,15 +26,18 @@ const STREET_LENGTH = 100
 const stoplights = [{
 	phi: 0,
 	id: 's0',
-	x: STREETS * STREET_LENGTH / 3
+	x: STREETS * STREET_LENGTH / 3,
+	y: STREETS * STREET_LENGTH / 3 * 2
 }, {
 	phi: 15,
 	id: 's1',
-	x: STREETS * STREET_LENGTH / 3 * 2
+	x: STREETS * STREET_LENGTH / 3 * 2,
+	y: STREETS * STREET_LENGTH / 3 * 2
 }, {
 	phi: 10,
 	id: 's2',
-	x: STREETS * STREET_LENGTH / 3 * 2
+	x: STREETS * STREET_LENGTH / 3,
+	y: STREETS * STREET_LENGTH / 3
 }];
 const stoplightRepo = stoplights.reduce((memo, val) => {
 	memo[val.id] = val;
@@ -115,21 +118,29 @@ Capture every = ${captureEvery}
 const ovitoXYZExporter = (streets, t) => {
 	const totalParticles = streets.reduce((acc, v) => acc + v.cars.length, 0) + streets.length * 2;
 	outputStream.write(`${totalParticles}\n`);
-	outputStream.write(`t = ${t.toFixed(6)}\n`);
+	const stoplightState = streets.map(st => {
+		const str = st.stoplights.map(id => stoplightRepo[id]).map(s => {
+			const onx = Math.floor((t + s.phi) / P) % 2 === 0;
+			if (st.direction === 'x') return `${s.id.toUpperCase()}x is ${onx ? 'ON' : 'OFF'}`;
+			return `${s.id.toUpperCase()}y is ${onx ? 'OFF' : 'ON'}`
+		});
+		return `Street ${st.id}: [${str}]`;
+	}).join(', ')
+	outputStream.write(`t = ${t.toFixed(6)}, ${stoplightState}\n`);
 	/// street endpoints
 	streets.forEach((s, i) => {
 		if (s.direction === 'x') {
-			outputStream.write([5000 + i * 2 + 1, (0).toFixed(6)                      , s.y.toFixed(6)                      , s.y.toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6), (0).toFixed(6)].join('\t') + '\n');
-			outputStream.write([5000 + i * 2 + 2, (STREETS * STREET_LENGTH).toFixed(6), s.y.toFixed(6)                      , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6), (0).toFixed(6)].join('\t') + '\n');	
+			outputStream.write([5000 + i * 2 + 1, (0).toFixed(6)                      , s.y.toFixed(6)                      , s.y.toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
+			outputStream.write([5000 + i * 2 + 2, (STREETS * STREET_LENGTH).toFixed(6), s.y.toFixed(6)                      , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');	
 		} else {
-			outputStream.write([5000 + i * 2 + 1, s.x.toFixed(6)                      , (0).toFixed(6)                      , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6), (1).toFixed(6)].join('\t') + '\n');
-			outputStream.write([5000 + i * 2 + 2, s.x.toFixed(6)                      , (STREETS * STREET_LENGTH).toFixed(6), (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6), (1).toFixed(6)].join('\t') + '\n');	
+			outputStream.write([5000 + i * 2 + 1, s.x.toFixed(6)                      , (0).toFixed(6)                      , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
+			outputStream.write([5000 + i * 2 + 2, s.x.toFixed(6)                      , (STREETS * STREET_LENGTH).toFixed(6), (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');	
 		}
 		s.cars.forEach(c => {
 			if (s.direction === 'x') {
-				outputStream.write([c.id, c.x.toFixed(6), s.y.toFixed(6), c.vx.toFixed(6), c.vy.toFixed(6), (c.length / 2).toFixed(6), (c.length / 2).toFixed(6), (c.width / 2).toFixed(6), (0).toFixed(6)].join('\t') + '\n');
+				outputStream.write([c.id, c.x.toFixed(6), s.y.toFixed(6), c.vx.toFixed(6), c.vy.toFixed(6), (c.length / 2).toFixed(6), (c.length / 2).toFixed(6), (c.width / 2).toFixed(6)].join('\t') + '\n');
 			} else {
-				outputStream.write([c.id, s.x.toFixed(6), c.x.toFixed(6), c.vy.toFixed(6), c.vx.toFixed(6), (c.length / 2).toFixed(6), (c.length / 2).toFixed(6), (c.width / 2).toFixed(6), (1).toFixed(6)].join('\t') + '\n');
+				outputStream.write([c.id, s.x.toFixed(6), c.x.toFixed(6), c.vx.toFixed(6), c.vy.toFixed(6), (c.width / 2).toFixed(6) , (c.width / 2).toFixed(6) , (c.length / 2).toFixed(6)].join('\t') + '\n');
 			}
 		});
 	});
@@ -143,7 +154,8 @@ const debug = [];
 const sForStreet = street => car => {
 	if (typeof(car.next) === 'string') {
 		const stoplight = stoplightRepo[car.next];
-		if (stoplight.x < car.x + car.length) {
+		const x = street.direction === 'x' ? stoplight.x : stoplight.y;
+		if (x < car.x + car.length) {
 			const prevNext = street.cars.find(c => c.id === car.prevNext);
 			if (!prevNext) {
 				console.log(stoplight);
@@ -215,18 +227,20 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 	streets.forEach(street => {
 		street.stoplights.map(id => stoplightRepo[id]).forEach(sl => {
 			const isOn = (() => {
-				const isOnX = Math.floor((time + sl.phi) / P) % 2 === 0 && Math.floor((time - TIME_STEP + sl.phi) / P) % 2 !== 0;
-				if (street.direction === 'x') return isOnX;
-				return !isOnX;
+				if (street.direction === 'x') return Math.floor((time + sl.phi) / P) % 2 === 0 && Math.floor((time - TIME_STEP + sl.phi) / P) % 2 !== 0;
+				return Math.floor((time + sl.phi) / P) % 2 !== 0 && Math.floor((time - TIME_STEP + sl.phi) / P) % 2 === 0;
 			})();
 			const isOff = (() => {
-				const isOffX = Math.floor((time + sl.phi) / P) % 2 !== 0 && Math.floor((time - TIME_STEP + sl.phi) / P) % 2 === 0;
-				if (street.direction === 'x') return isOffX;
-				return !isOffX;
+				if (street.direction === 'x') return Math.floor((time + sl.phi) / P) % 2 !== 0 && Math.floor((time - TIME_STEP + sl.phi) / P) % 2 === 0;
+				return Math.floor((time + sl.phi) / P) % 2 === 0 && Math.floor((time - TIME_STEP + sl.phi) / P) % 2 !== 0;
 			})();
 			if (isOn) {
 				/// stoplight turned on
-				const idx = street.cars.findIndex(c => c.x > sl.x);
+				console.log(chalk.green(`\nSTOPLIGHT ${sl.id}${street.direction} is ON`));
+				const idx = street.cars.findIndex(c => {
+					if (street.direction === 'x') return c.x > sl.x;
+					return c.x > sl.y;
+				});
 				const desiredIndex = (() => {
 					if (~idx) return idx - 1 < 0 ? street.cars.length - 1 : idx - 1;
 					return street.cars.length - 1;
@@ -241,7 +255,7 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 				// console.log(chalk.green(`\nSTOPLIGHT ${sl.id} ON at t=${time} on car[id = ${street.cars[desiredIndex].id}] at index ${desiredIndex}, chases = ${sl.id}, chased = ${street.cars[desiredIndex].prevNext}, idx = ${desiredIndex}`));
 			} else if (isOff) {
 				/// stoplight turned off
-				
+				console.log(chalk.green(`\nSTOPLIGHT ${sl.id}${street.direction} is OFF`));
 				const carExpectingOtherStoplight = street.cars.find(c => c.shouldFollow);
 				if (carExpectingOtherStoplight) {
 					if (carExpectingOtherStoplight.shouldFollow === sl.id) {
@@ -325,7 +339,7 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 	bar.update(time);
 }
 
-console.log(`Max Speed = ${maxSpeed}`);
+console.log(`\nMax Speed = ${maxSpeed}`);
 
 outputStream.end();
 bar.stop();
