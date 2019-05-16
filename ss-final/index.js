@@ -196,8 +196,8 @@ const accelerationForStreet = street => {
 };
 
 const isStoplightOn = s => sl => {
-	if (s.direction === 'x') return sl.phi % P !== 0;
-	return sl.phi % P === 0;
+	if (s.direction === 'x') return (P - sl.phi) % P !== 0;
+	return (P - sl.phi) % P === 0;
 };
 streets.forEach(s => {
 	const setCarTargetToStoplight = sl => {
@@ -210,7 +210,7 @@ streets.forEach(s => {
 		})();
 		s.cars[desiredIndex].prevNext = s.cars[desiredIndex].next.id;
 		s.cars[desiredIndex].next = sl.id;
-		console.log(chalk.green(`STOPLIGHT ${sl.id} is ON in direction ${s.direction} before start at t=${-sl.phi % P} on car[id = ${s.cars[desiredIndex].id}] at index ${desiredIndex}, chased = ${s.cars[desiredIndex].prevNext}`));
+		console.log(chalk.green(`STOPLIGHT ${sl.id} is ON in direction ${s.direction} before start at t=${-((P - sl.phi) % P)} on car[id = ${s.cars[desiredIndex].id}] at index ${desiredIndex}, chased = ${s.cars[desiredIndex].prevNext}`));
 	};
 	s.stoplights.map(id => stoplightRepo[id]).filter(isStoplightOn(s)).forEach(setCarTargetToStoplight);
 });
@@ -229,11 +229,11 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 	streets.forEach(street => {
 		street.stoplights.map(id => stoplightRepo[id]).forEach(sl => {
 			const isOn = (() => {
-				if (street.direction === 'x') return Math.floor((time + sl.phi) / P) % 2 === 0 && Math.floor((time - TIME_STEP + sl.phi) / P) % 2 !== 0;
+				if (street.direction === 'x') return Math.floor((time - sl.phi) / P) % 2 === 0 && Math.floor((time - TIME_STEP - sl.phi) / P) % 2 !== 0;
 				return Math.floor((time + sl.phi) / P) % 2 !== 0 && Math.floor((time - TIME_STEP + sl.phi) / P) % 2 === 0;
 			})();
 			const isOff = (() => {
-				if (street.direction === 'x') return Math.floor((time + sl.phi) / P) % 2 !== 0 && Math.floor((time - TIME_STEP + sl.phi) / P) % 2 === 0;
+				if (street.direction === 'x') return Math.floor((time - sl.phi) / P) % 2 !== 0 && Math.floor((time - TIME_STEP - sl.phi) / P) % 2 === 0;
 				return Math.floor((time + sl.phi) / P) % 2 === 0 && Math.floor((time - TIME_STEP + sl.phi) / P) % 2 !== 0;
 			})();
 			if (isOn) {
@@ -275,6 +275,13 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 					carExpectingOtherStoplight.next = carExpectingOtherStoplight.shouldFollow;
 					delete carExpectingOtherStoplight.shouldFollow;
 				}
+
+				const otherStoplight = stoplightRepo[street.stoplights[(street.stoplights.indexOf(sl.id) + 1) % street.stoplights.length]];
+				const isOn = (() => {
+					if (street.direction === 'x') return Math.floor((time + otherStoplight.phi) / P) % 2 === 0;
+					return Math.floor((time + otherStoplight.phi) / P) % 2 !== 0;
+				})();
+
 				
 				const car = street.cars.find(c => c.next === sl.id);
 				if (!car) {
