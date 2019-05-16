@@ -46,11 +46,13 @@ const streetsRepo = {
 		id: 1,
 		direction: 'y',
 		stoplights: ['s0', 's2'],
+		x: STREETS * STREET_LENGTH / 3,
 	},
 	"2": {
 		id: 2,
 		direction: 'x',
-		stoplights: ['s0', 's1']
+		stoplights: ['s0', 's1'],
+		y: STREETS * STREET_LENGTH / 3 * 2
 	}
 };
 
@@ -59,8 +61,8 @@ const streets = Object.values(streetsRepo);
 const outputStream = fs.createWriteStream(OUTPUT_FILE);
 const bar = new CLIProgress.Bar({}, CLIProgress.Presets.shades_classic);
 
-const generateCarGroup = length => Array.from({ length }).map((_, i) => ({
-	id: i,
+const generateCarGroup = (s, length) => Array.from({ length }).map((_, i) => ({
+	id: s.id * 100 + i,
 	length: CAR_LENGTH,
 	width: CAR_WIDTH,
 	x: Math.random() * STREET_LENGTH * STREETS,
@@ -84,7 +86,7 @@ streets.forEach(s => {
 	s.cars = (() => {
 		let n = 10000;
 		do {
-			const carGroup = generateCarGroup(Math.ceil(N / streets.length));
+			const carGroup = generateCarGroup(s, Math.ceil(N / streets.length));
 			carGroup.sort((a, b) => a.x - b.x);
 			if (isCarGroupOK(carGroup))
 				return carGroup;
@@ -110,17 +112,30 @@ FPS = ${FPS}
 Capture every = ${captureEvery}
 `);
 
-const ovitoXYZExporter = (cars, t) => {
+const ovitoXYZExporter = (streets, t) => {
 	outputStream.write(`${N + 2}\n`);
 	outputStream.write(`t = ${t.toFixed(6)}\n`);
-	outputStream.write([5000, (0).toFixed(6), (0).toFixed(6), (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
-	outputStream.write([5001, (STREETS * STREET_LENGTH).toFixed(6), (0).toFixed(6), (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
-	cars.forEach(c => {
-		outputStream.write([c.id, c.x.toFixed(6), c.y.toFixed(6), c.vx.toFixed(6), c.vy.toFixed(6), (c.length / 2).toFixed(6), (c.length / 2).toFixed(6), (c.width / 2).toFixed(6)].join('\t') + '\n');
+	/// street endpoints
+	streets.forEach((s, i) => {
+		if (s.direction === 'x') {
+			outputStream.write([5000 + i * 2 + 1, (0).toFixed(6), s.y.toFixed(6), s.y.toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
+			outputStream.write([5000 + i * 2 + 2, (STREETS * STREET_LENGTH).toFixed(6), s.y.toFixed(6), (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');	
+		} else {
+			outputStream.write([5000 + i * 2 + 1, s.x.toFixed(6), (0).toFixed(6), (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
+			outputStream.write([5000 + i * 2 + 2, s.x.toFixed(6), (0).toFixed(6), (STREETS * STREET_LENGTH).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');	
+		}
+		s.cars.forEach(c => {
+			if (s.direction === 'x') {
+				outputStream.write([c.id, c.x.toFixed(6), s.y.toFixed(6), c.vx.toFixed(6), c.vy.toFixed(6), (c.length / 2).toFixed(6), (c.length / 2).toFixed(6), (c.width / 2).toFixed(6)].join('\t') + '\n');
+			} else {
+				outputStream.write([c.id, s.x.toFixed(6), c.x.toFixed(6), c.vy.toFixed(6), c.vx.toFixed(6), (c.length / 2).toFixed(6), (c.length / 2).toFixed(6), (c.width / 2).toFixed(6)].join('\t') + '\n');
+			}
+		});
 	});
+	
 };
 
-// ovitoXYZExporter(cars, 0);
+ovitoXYZExporter(streets, 0);
 
 const debug = [];
 
@@ -197,7 +212,8 @@ let maxSpeed = 0;
 bar.start(DURATION, 0);
 for (let time = 0; time < DURATION; time += TIME_STEP) {
 	streets.forEach(street => {
-		street.stoplights.map(sl => stoplightRepo[sl.id]).forEach(sl => {
+		street.stoplights.map(id => stoplightRepo[id]).forEach(sl => {
+			console.log(sl);
 			const isOn = (() => {
 				const isOnX = Math.floor((time + sl.phi) / P) % 2 === 0 && Math.floor((time - TIME_STEP + sl.phi) / P) % 2 !== 0;
 				if (street.direction === 'x') return isOnX;
@@ -261,7 +277,7 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 				x: nx,
 				y: 0,
 				vx: c.vx + 3 / 2 * ax * TIME_STEP - 1 / 2 * c.pax * TIME_STEP,
-				vy: 0 
+				vy: 0
 			};
 			debug.push('predict');
 	
@@ -304,7 +320,7 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 		});
 	});
 	if (time % (1 / FPS) < TIME_STEP) {
-		ovitoXYZExporter(cars, time + TIME_STEP);
+		ovitoXYZExporter(streets, time + TIME_STEP);
 	}
 	bar.update(time);
 }
