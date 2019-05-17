@@ -3,6 +3,12 @@ const fs = require('fs')
 		, chalk = require('chalk')
 		, CLIProgress = require('cli-progress');
 
+process.on('uncaughtException', function (err) {
+	console.log('uncaughtException');
+	console.error(err);
+	outputStream.end();
+});		
+
 const STREET_LENGTH = 100
 		, STREETS = 3
 		, CAR_LENGTH = 5.26
@@ -15,7 +21,7 @@ const STREET_LENGTH = 100
 		, ACCELERATION_EXPONENT = 4
 		, JAM_DISTANCE_0 = 2
 		, JAM_DISTANCE_1 = 0.3
-		, TIME_STEP = 0.01
+		, TIME_STEP = 0.05
 		, FPS = 60
 		, MINUTES_TO_SECONDS = 60
 		, DURATION = 5 * MINUTES_TO_SECONDS
@@ -29,12 +35,12 @@ const stoplights = [{
 	x: STREETS * STREET_LENGTH / 3,
 	y: STREETS * STREET_LENGTH / 3 * 2
 }, {
-	phi: 15,
+	phi: 0,
 	id: 's1',
 	x: STREETS * STREET_LENGTH / 3 * 2,
 	y: STREETS * STREET_LENGTH / 3 * 2
 }, {
-	phi: 10,
+	phi: 0,
 	id: 's2',
 	x: STREETS * STREET_LENGTH / 3,
 	y: STREETS * STREET_LENGTH / 3
@@ -54,12 +60,12 @@ const streetsRepo = {
 	"2": {
 		id: 2,
 		direction: 'x',
-		stoplights: ['s0', 's1'],
+		stoplights: ['s1', 's0'],
 		y: STREETS * STREET_LENGTH / 3 * 2
-	}
+	},
 };
 
-const streets = Object.values(streetsRepo);
+const streets = Object.values(streetsRepo).reverse();
 
 const outputStream = fs.createWriteStream(OUTPUT_FILE);
 const bar = new CLIProgress.Bar({}, CLIProgress.Presets.shades_classic);
@@ -136,7 +142,7 @@ const ovitoXYZExporter = (streets, t) => {
 	});
 	streets.forEach((s, i) => {
 		if (s.direction === 'x') {
-			outputStream.write([5000 + i * 2 + 1, (0).toFixed(6)                      , s.y.toFixed(6)                      , s.y.toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
+			outputStream.write([5000 + i * 2 + 1, (0).toFixed(6)                      , s.y.toFixed(6)                      , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
 			outputStream.write([5000 + i * 2 + 2, (STREETS * STREET_LENGTH).toFixed(6), s.y.toFixed(6)                      , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');	
 		} else {
 			outputStream.write([5000 + i * 2 + 1, s.x.toFixed(6)                      , (0).toFixed(6)                      , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
@@ -214,19 +220,31 @@ streets.forEach(s => {
 			if (~idx) return idx - 1 < 0 ? s.cars.length - 1 : idx - 1;
 			return s.cars.length - 1;
 		})();
-		s.cars[desiredIndex].prevNext = s.cars[desiredIndex].next.id;
-		s.cars[desiredIndex].next = sl.id;
-		console.log(chalk.green(`STOPLIGHT ${sl.id} is ON in direction ${s.direction} before start at t=${-((P - sl.phi) % P)} on car[id = ${s.cars[desiredIndex].id}] at index ${desiredIndex}, chased = ${s.cars[desiredIndex].prevNext}`));
+		const car = s.cars[desiredIndex];
+		const otherStoplight = stoplightRepo[s.stoplights[(s.stoplights.indexOf(sl.id) + 1) % s.stoplights.length]];
+		const ox = s.direction ? otherStoplight.x : otherStoplight.y;
+		const odist = car.x > ox ? STREETS * STREET_LENGTH - car.x + ox : ox - car.x;
+		const dist = car.x > x ? STREETS * STREET_LENGTH - car.x + x : x - car.x;
+		console.log(`${sl.id} is ${dist} from ${car.id}`);
+		console.log(`${otherStoplight.id} is ${odist} from ${car.id}`);
+		if (odist < dist) {
+			console.log(chalk.red(`STOPLIGHT ${sl.id} is RED in direction ${s.direction} before start at t=${-((P - sl.phi) % P)}`));
+			return;
+		}
+		car.prevNext = car.next.id;
+		car.next = sl.id;
+		console.log(chalk.red(`STOPLIGHT ${sl.id} is RED in direction ${s.direction} before start at t=${-((P - sl.phi) % P)} on car[id = ${car.id}] at index ${desiredIndex}, chased = ${car.prevNext}`));
 	};
 	s.stoplights.map(id => stoplightRepo[id]).filter(isStoplightOn(s)).forEach(setCarTargetToStoplight);
 });
 
-streets.forEach(s => {
+const showChaseStatus = () => streets.forEach(s => {
 	console.log(`Street ${s.id} direction ${s.direction}`);
 	s.cars.forEach(c => {
-		console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}]`);
+		console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}] [${c.shouldFollow}]`);
 	});
 });
+showChaseStatus();
 console.log(chalk.underline('Begin'));
 
 let maxSpeed = 0;
@@ -243,72 +261,79 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 				return Math.floor((time + (P - sl.phi)) / P) % 2 === 0 && Math.floor((time - TIME_STEP + (P - sl.phi)) / P) % 2 !== 0;
 			})();
 			if (isOn) {
-				/// stoplight turned on
-				console.log(chalk.green(`STOPLIGHT ${sl.id} in direction ${street.direction} is ON at t=${time}`));
+				/// stoplight turned on, means wen RED in the direction of the street
+				console.log(chalk.red(`STOPLIGHT ${sl.id} in direction ${street.direction} is RED at t=${time}`));
 				const idx = street.cars.findIndex(c => {
 					if (street.direction === 'x') return c.x > sl.x;
 					return c.x > sl.y;
 				});
+				if (~idx) {
+					console.log(`first car after stoplight is ${street.cars[idx].id}`);
+				} else {
+					console.log(`first car after stoplight is none`);
+				}
 				const desiredIndex = (() => {
 					if (~idx) return idx - 1 < 0 ? street.cars.length - 1 : idx - 1;
 					return street.cars.length - 1;
 				})();
+				console.log(`first car before stoplight is ${street.cars[desiredIndex].id}`);
 				if (typeof(street.cars[desiredIndex].next) === 'string') {
-					street.cars[desiredIndex].shouldFollow = sl.id;
+					/// all cars are waiting the other stoplight
+					if (street.cars[desiredIndex].next !== sl.id) {
+						street.cars[desiredIndex].shouldFollow = sl.id;
+					}
 					// console.log(chalk.green(`\nSTOPLIGHT ${sl.id} ON at t=${time} but all cars are stuck in other stoplight`));
+					showChaseStatus();
 					return;
 				}
+				/// the selected car should stop at this stoplight
 				street.cars[desiredIndex].prevNext = street.cars[desiredIndex].next.id;
 				street.cars[desiredIndex].next = sl.id;
-				// streets.forEach(s => {
-				// 	console.log(`Street ${s.id} direction ${s.direction}`);
-				// 	s.cars.forEach(c => {
-				// 		console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}]`);
-				// 	});
-				// });
+				showChaseStatus();
 				// console.log(chalk.green(`\nSTOPLIGHT ${sl.id} ON at t=${time} on car[id = ${street.cars[desiredIndex].id}] at index ${desiredIndex}, chases = ${sl.id}, chased = ${street.cars[desiredIndex].prevNext}, idx = ${desiredIndex}`));
 			} else if (isOff) {
-				/// stoplight turned off
-				console.log(chalk.red(`STOPLIGHT ${sl.id} in direction ${street.direction} is OFF at t=${time}`));
+				/// stoplight turned off, this means its GREEN in the direction of the street
+				console.log(chalk.green(`STOPLIGHT ${sl.id} in direction ${street.direction} is GREEN at t=${time}`));
 				const carExpectingOtherStoplight = street.cars.find(c => c.shouldFollow);
 				if (carExpectingOtherStoplight) {
+					console.log(`car ${carExpectingOtherStoplight.id} is stopped by ${carExpectingOtherStoplight.next} and will be stopped by ${carExpectingOtherStoplight.shouldFollow}`)
 					if (carExpectingOtherStoplight.shouldFollow === sl.id) {
-						carExpectingOtherStoplight.next = street.cars.find(c => c.id === carExpectingOtherStoplight.prevNext);
+						console.log(`stoplight ${sl.id} is now GREEN => car ${carExpectingOtherStoplight.id} should just keep stopped at ${carExpectingOtherStoplight.next}`);
+						// carExpectingOtherStoplight.next = street.cars.find(c => c.id === carExpectingOtherStoplight.prevNext);
 						delete carExpectingOtherStoplight.shouldFollow;
 						// console.log(chalk.red(`\nSTOPLIGHT ${sl.id} OFF at t=${time}, car ${carExpectingOtherStoplight.id} was to stop, but i'm off, so he'll chase ${carExpectingOtherStoplight.next.id}`));
+						showChaseStatus();
 						return;
 					}
 					carExpectingOtherStoplight.next = carExpectingOtherStoplight.shouldFollow;
 					delete carExpectingOtherStoplight.shouldFollow;
-				}
-
-				const car = street.cars.find(c => c.next === sl.id);
-				if (!car) {
-					console.log(`\nt = ${time}, ${JSON.stringify(sl)}`);
 					return;
 				}
-				// console.log(chalk.red(`\nSTOPLIGHT ${sl.id} OFF at t=${time} on car[id = ${car.id}], chases = ${car.prevNext}`));
-				car.next = street.cars.find(c => c.id === car.prevNext);
 
-				const otherStoplight = stoplightRepo[street.stoplights[(street.stoplights.indexOf(sl.id) + 1) % street.stoplights.length]];
-				const otherStoplightIsOn = (() => {
-					if (street.direction === 'x') return Math.floor((time - otherStoplight.phi) / P) % 2 === 0;
-					return Math.floor((time - otherStoplight.phi) / P) % 2 !== 0;
-				})();
-				const x = (() => {
-					if (street.direction === 'x') return otherStoplight.x;
-					return otherStoplight.y;
-				})();
-				if (otherStoplightIsOn && (car.next.x < car.x || car.next.x > x)) {
-					car.next = otherStoplight.id
+				const cars = street.cars.filter(c => c.next === sl.id);
+				if (!cars.length) {
+					showChaseStatus();
+					return;
 				}
+				cars.forEach(car => {
+					// console.log(chalk.red(`\nSTOPLIGHT ${sl.id} OFF at t=${time} on car[id = ${car.id}], chases = ${car.prevNext}`));
+					car.next = street.cars.find(c => c.id === car.prevNext);
+
+					// const otherStoplight = stoplightRepo[street.stoplights[(street.stoplights.indexOf(sl.id) + 1) % street.stoplights.length]];
+					// const otherStoplightIsOn = (() => {
+					// 	if (street.direction === 'x') return Math.floor((time - otherStoplight.phi) / P) % 2 === 0;
+					// 	return Math.floor((time - otherStoplight.phi) / P) % 2 !== 0;
+					// })();
+					// const x = (() => {
+					// 	if (street.direction === 'x') return otherStoplight.x;
+					// 	return otherStoplight.y;
+					// })();
+					// if (otherStoplightIsOn && (car.next.x < car.x || car.next.x > x)) {
+					// 	car.next = otherStoplight.id
+					// }
+				});
 				
-				// streets.forEach(s => {
-				// 	console.log(`Street ${s.id} direction ${s.direction}`);
-				// 	s.cars.forEach(c => {
-				// 		console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}]`);
-				// 	});
-				// });
+				showChaseStatus();
 			}
 		});
 	});
