@@ -7,7 +7,19 @@ process.on('uncaughtException', function (err) {
 	console.log('uncaughtException');
 	console.error(err);
 	outputStream.end();
-});		
+});
+
+const maxBy = (arr, iteratee) => {
+  const func = typeof iteratee === 'function' ? iteratee : item => item[iteratee];
+  const max = Math.max(...arr.map(func));
+  return arr.find(item => func(item) === max);
+};
+
+const maxByIndex = (arr, iteratee) => {
+  const func = typeof iteratee === 'function' ? iteratee : item => item[iteratee];
+  const max = Math.max(...arr.map(func));
+  return arr.findIndex(item => func(item) === max);
+};
 
 const STREET_LENGTH = 100
 		, STREETS = 3
@@ -246,11 +258,9 @@ streets.forEach(s => {
 		})();
 		const car = s.cars[desiredIndex];
 		const otherStoplight = stoplightRepo[s.stoplights[(s.stoplights.indexOf(sl.id) + 1) % s.stoplights.length]];
-		const ox = s.direction ? otherStoplight.x : otherStoplight.y;
+		const ox = s.direction === 'x' ? otherStoplight.x : otherStoplight.y;
 		const odist = car.x > ox ? STREETS * STREET_LENGTH - car.x + ox : ox - car.x;
 		const dist = car.x > x ? STREETS * STREET_LENGTH - car.x + x : x - car.x;
-		console.log(`${sl.id} is ${dist} from ${car.id}`);
-		console.log(`${otherStoplight.id} is ${odist} from ${car.id}`);
 		if (odist < dist) {
 			console.log(chalk.red(`STOPLIGHT ${sl.id} is RED in direction ${s.direction} before start at t=${-((P - sl.phi) % P)}`));
 			return;
@@ -298,7 +308,7 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 				}
 				const desiredIndex = (() => {
 					if (~idx) return idx - 1 < 0 ? street.cars.length - 1 : idx - 1;
-					return street.cars.length - 1;
+					return maxByIndex(street.cars, 'x');
 				})();
 				console.log(`first car before stoplight is ${street.cars[desiredIndex].id}`);
 				if (typeof(street.cars[desiredIndex].next) === 'string') {
@@ -329,8 +339,10 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 						showChaseStatus();
 						return;
 					}
+					console.log(`stoplight ${sl.id} is now GREEN => car ${carExpectingOtherStoplight.id} next stop is ${carExpectingOtherStoplight.shouldFollow}`);
 					carExpectingOtherStoplight.next = carExpectingOtherStoplight.shouldFollow;
 					delete carExpectingOtherStoplight.shouldFollow;
+					showChaseStatus();
 					return;
 				}
 
@@ -342,6 +354,9 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 				cars.forEach(car => {
 					// console.log(chalk.red(`\nSTOPLIGHT ${sl.id} OFF at t=${time} on car[id = ${car.id}], chases = ${car.prevNext}`));
 					car.next = street.cars.find(c => c.id === car.prevNext);
+					if (typeof(car.prevNext) !== 'string') {
+						delete car.prevNext;
+					}
 
 					// const otherStoplight = stoplightRepo[street.stoplights[(street.stoplights.indexOf(sl.id) + 1) % street.stoplights.length]];
 					// const otherStoplightIsOn = (() => {
