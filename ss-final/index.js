@@ -9,24 +9,6 @@ process.on('uncaughtException', function (err) {
 	outputStream.end();
 });
 
-// const maxBy = (arr, iteratee) => {
-//   const func = typeof iteratee === 'function' ? iteratee : item => item[iteratee];
-//   const max = Math.max(...arr.map(func));
-//   return arr.find(item => func(item) === max);
-// };
-
-// const maxByIndex = (arr, iteratee) => {
-//   const func = typeof iteratee === 'function' ? iteratee : item => item[iteratee];
-//   const max = Math.max(...arr.map(func));
-//   return arr.findIndex(item => func(item) === max);
-// };
-
-// const minBy = (arr, iteratee) => {
-//   const func = typeof iteratee === 'function' ? iteratee : item => item[iteratee];
-//   const min = Math.min(...arr.map(func));
-//   return arr.find(item => func(item) === min);
-// };
-
 const minByIndex = (arr, iteratee) => {
   const func = typeof iteratee === 'function' ? iteratee : item => item[iteratee];
   const min = Math.min(...arr.map(func));
@@ -37,7 +19,7 @@ const STREET_LENGTH = 100
 		, STREETS = 3
 		, CAR_LENGTH = 5.26
 		, CAR_WIDTH = 1.76
-		, N = 16
+		, N = 8
 		, DESIRED_VELOCITY = 8.333
 		, REACTION_TIME = 1.6
 		, MAXIMUM_ACCELERATION = 0.73
@@ -51,8 +33,8 @@ const STREET_LENGTH = 100
 		, DURATION = 5 * MINUTES_TO_SECONDS
 		, RUN_ID = Date.now() % 1000
 		, OUTPUT_FILE = `./out/output-${RUN_ID}.xyz`
-		, P = 30
-		, INPUT_FILE = './cars/cars-563.json';
+		, P = 30 / Math.PI
+		, INPUT_FILE = './cars/cars-912.json';
 
 const stoplights = [{
 	phi: 0,
@@ -70,7 +52,7 @@ const stoplights = [{
 	x: STREETS * STREET_LENGTH / 3,
 	y: STREETS * STREET_LENGTH / 3
 }, {
-	phi: 0,
+	phi: 5,
 	id: 's3',
 	x: STREETS * STREET_LENGTH / 3 * 2,
 	y: STREETS * STREET_LENGTH / 3
@@ -191,7 +173,7 @@ const ovitoXYZExporter = (streets, t) => {
 	outputStream.write(`${totalParticles}\n`);
 	const stoplightState = streets.map(st => {
 		const str = st.stoplights.map(id => stoplightRepo[id]).map(s => {
-			const onx = Math.floor((t - s.phi) / P) % 2 !== 0;
+			const onx = Math.sin((t - s.phi) / P) < 0;
 			if (st.direction === 'x') return `${s.id.toUpperCase()}x is ${onx ? 'ON' : 'OFF'}`;
 			return `${s.id.toUpperCase()}y is ${onx ? 'OFF' : 'ON'}`;
 		});
@@ -215,7 +197,7 @@ const ovitoXYZExporter = (streets, t) => {
 		}
 	});
 	stoplights.forEach((sl, i) => {
-		if (Math.floor((t - sl.phi) / P) % 2 === 0) {
+		if (Math.sin((t - sl.phi) / P) < 0) {
 			outputStream.write([6000 + i * 2, sl.x.toFixed(6), sl.y.toFixed(6), (15).toFixed(6), (0).toFixed(6), (5).toFixed(6), (5).toFixed(6), (1).toFixed(6)].join('\t') + '\n');
 		} else {
 			outputStream.write([6000 + i * 2, sl.x.toFixed(6), sl.y.toFixed(6), (15).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (5).toFixed(6)].join('\t') + '\n');
@@ -272,23 +254,27 @@ const accelerationForStreet = street => {
 };
 
 const isStoplightOn = s => sl => {
-	if (s.direction === 'x') return (P - sl.phi) % P !== 0;
-	return (P - sl.phi) % P === 0;
+	if (s.direction === 'x') return Math.sin(-sl.phi / P) >= 0;
+	return Math.sin(-sl.phi / P) < 0;
 };
 streets.forEach(s => {
 	const setCarTargetToStoplight = sl => {
 		/// stoplight is on before starting
 		const x = s.direction === 'x' ? sl.x : sl.y;
-		const idx = s.cars.findIndex(c => c.x > x);
-		const desiredIndex = (() => {
-			if (~idx) return idx - 1 < 0 ? s.cars.length - 1 : idx - 1;
-			return s.cars.length - 1;
-		})();
+		const desiredIndex = minByIndex(s.cars, c => {
+			return c.x > x ? STREETS * STREET_LENGTH + x - c.x : x - c.x;
+		});
+		// const idx = s.cars.findIndex(c => c.x > x);
+		// const desiredIndex = (() => {
+		// 	if (~idx) return idx - 1 < 0 ? s.cars.length - 1 : idx - 1;
+		// 	return s.cars.length - 1;
+		// })();
 		const car = s.cars[desiredIndex];
 		const otherStoplight = stoplightRepo[s.stoplights[(s.stoplights.indexOf(sl.id) + 1) % s.stoplights.length]];
 		const ox = s.direction === 'x' ? otherStoplight.x : otherStoplight.y;
 		const odist = car.x > ox ? STREETS * STREET_LENGTH - car.x + ox : ox - car.x;
 		const dist = car.x > x ? STREETS * STREET_LENGTH - car.x + x : x - car.x;
+		// console.log(sl.id, car.id, dist, odist);
 		if (odist < dist) {
 			console.log(chalk.red(`STOPLIGHT ${sl.id} is RED in direction ${s.direction} before start at t=${-((P - sl.phi) % P)}`));
 			return;
@@ -307,6 +293,9 @@ const showChaseStatus = () => streets.forEach(s => {
 	});
 });
 showChaseStatus();
+
+// process.exit(0);
+
 console.log(chalk.underline('Begin'));
 
 let maxSpeed = 0;
@@ -315,12 +304,12 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 	streets.forEach(street => {
 		street.stoplights.map(id => stoplightRepo[id]).forEach(sl => {
 			const isOn = (() => {
-				if (street.direction === 'x') return Math.floor((time - (P - sl.phi)) / P) % 2 === 0 && Math.floor((time - TIME_STEP - (P - sl.phi)) / P) % 2 !== 0;
-				return Math.floor((time + (P - sl.phi)) / P) % 2 !== 0 && Math.floor((time - TIME_STEP + (P - sl.phi)) / P) % 2 === 0;
+				if (street.direction === 'x') return Math.sin((time - sl.phi) / P) >= 0 && Math.sin((time - TIME_STEP - sl.phi) / P) < 0;
+				return 1 - Math.sin((time - sl.phi) / P) >= 0 && 1 - Math.sin((time - TIME_STEP - sl.phi) / P) < 0;
 			})();
 			const isOff = (() => {
-				if (street.direction === 'x') return Math.floor((time - (P - sl.phi)) / P) % 2 !== 0 && Math.floor((time - TIME_STEP - (P - sl.phi)) / P) % 2 === 0;
-				return Math.floor((time + (P - sl.phi)) / P) % 2 === 0 && Math.floor((time - TIME_STEP + (P - sl.phi)) / P) % 2 !== 0;
+				if (street.direction === 'x') return 1 - Math.sin((time - sl.phi) / P) >= 0 && 1 - Math.sin((time - TIME_STEP - sl.phi) / P) < 0;
+				return Math.sin((time - sl.phi) / P) >= 0 && Math.sin((time - TIME_STEP - sl.phi) / P) < 0;
 			})();
 			if (isOn) {
 				/// stoplight turned on, means wen RED in the direction of the street
@@ -386,19 +375,6 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 					if (typeof(car.prevNext) !== 'string') {
 						delete car.prevNext;
 					}
-
-					// const otherStoplight = stoplightRepo[street.stoplights[(street.stoplights.indexOf(sl.id) + 1) % street.stoplights.length]];
-					// const otherStoplightIsOn = (() => {
-					// 	if (street.direction === 'x') return Math.floor((time - otherStoplight.phi) / P) % 2 === 0;
-					// 	return Math.floor((time - otherStoplight.phi) / P) % 2 !== 0;
-					// })();
-					// const x = (() => {
-					// 	if (street.direction === 'x') return otherStoplight.x;
-					// 	return otherStoplight.y;
-					// })();
-					// if (otherStoplightIsOn && (car.next.x < car.x || car.next.x > x)) {
-					// 	car.next = otherStoplight.id
-					// }
 				});
 				
 				showChaseStatus();
