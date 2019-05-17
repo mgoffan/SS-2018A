@@ -9,23 +9,23 @@ process.on('uncaughtException', function (err) {
 	outputStream.end();
 });
 
-const maxBy = (arr, iteratee) => {
-  const func = typeof iteratee === 'function' ? iteratee : item => item[iteratee];
-  const max = Math.max(...arr.map(func));
-  return arr.find(item => func(item) === max);
-};
+// const maxBy = (arr, iteratee) => {
+//   const func = typeof iteratee === 'function' ? iteratee : item => item[iteratee];
+//   const max = Math.max(...arr.map(func));
+//   return arr.find(item => func(item) === max);
+// };
 
-const maxByIndex = (arr, iteratee) => {
-  const func = typeof iteratee === 'function' ? iteratee : item => item[iteratee];
-  const max = Math.max(...arr.map(func));
-  return arr.findIndex(item => func(item) === max);
-};
+// const maxByIndex = (arr, iteratee) => {
+//   const func = typeof iteratee === 'function' ? iteratee : item => item[iteratee];
+//   const max = Math.max(...arr.map(func));
+//   return arr.findIndex(item => func(item) === max);
+// };
 
-const minBy = (arr, iteratee) => {
-  const func = typeof iteratee === 'function' ? iteratee : item => item[iteratee];
-  const min = Math.min(...arr.map(func));
-  return arr.find(item => func(item) === min);
-};
+// const minBy = (arr, iteratee) => {
+//   const func = typeof iteratee === 'function' ? iteratee : item => item[iteratee];
+//   const min = Math.min(...arr.map(func));
+//   return arr.find(item => func(item) === min);
+// };
 
 const minByIndex = (arr, iteratee) => {
   const func = typeof iteratee === 'function' ? iteratee : item => item[iteratee];
@@ -52,7 +52,7 @@ const STREET_LENGTH = 100
 		, RUN_ID = Date.now() % 1000
 		, OUTPUT_FILE = `./out/output-${RUN_ID}.xyz`
 		, P = 30
-		, INPUT_FILE = null;//'./cars/cars-29.json';//'./cars/cars-860.json';//'./cars/cars-353.json';
+		, INPUT_FILE = './cars/cars-563.json';
 
 const stoplights = [{
 	phi: 0,
@@ -97,7 +97,7 @@ const streetsRepo = {
 		id: 3,
 		direction: 'y',
 		stoplights: ['s1', 's3'],
-		y: STREETS * STREET_LENGTH / 3 * 2
+		x: STREETS * STREET_LENGTH / 3 * 2
 	},
 	"4": {
 		id: 4,
@@ -329,19 +329,29 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 				const desiredIndex = minByIndex(street.cars, c => {
 					return (c.x > x || Math.abs(x - c.x) < 5) ? STREETS * STREET_LENGTH + x - c.x : x - c.x;
 				});
+				const car = street.cars[desiredIndex];
 				console.log(`first car before stoplight is ${street.cars[desiredIndex].id}`);
-				if (typeof(street.cars[desiredIndex].next) === 'string') {
+				if (typeof(car.next) === 'string') {
 					/// all cars are waiting the other stoplight
-					if (street.cars[desiredIndex].next !== sl.id) {
-						street.cars[desiredIndex].shouldFollow = sl.id;
+					if (car.next !== sl.id) {
+						const otherStoplight = stoplightRepo[street.stoplights[(street.stoplights.indexOf(sl.id) + 1) % street.stoplights.length]];
+						const ox = street.direction === 'x' ? otherStoplight.x : otherStoplight.y;
+						const dx = (car.x > x || Math.abs(x - car.x) < 5) ? STREETS * STREET_LENGTH + x - car.x : x - car.x;
+						const odx = (car.x > ox || Math.abs(ox - car.x) < 5) ? STREETS * STREET_LENGTH + ox - car.x : ox - car.x;
+						if (dx > odx) {
+							car.shouldFollow = sl.id;
+						} else {
+							car.shouldFollow = otherStoplight.id;
+							car.next = sl.id
+						}
 					}
 					// console.log(chalk.green(`\nSTOPLIGHT ${sl.id} ON at t=${time} but all cars are stuck in other stoplight`));
 					showChaseStatus();
 					return;
 				}
 				/// the selected car should stop at this stoplight
-				street.cars[desiredIndex].prevNext = street.cars[desiredIndex].next.id;
-				street.cars[desiredIndex].next = sl.id;
+				car.prevNext = car.next.id;
+				car.next = sl.id;
 				showChaseStatus();
 				// console.log(chalk.green(`\nSTOPLIGHT ${sl.id} ON at t=${time} on car[id = ${street.cars[desiredIndex].id}] at index ${desiredIndex}, chases = ${sl.id}, chased = ${street.cars[desiredIndex].prevNext}, idx = ${desiredIndex}`));
 			} else if (isOff) {
