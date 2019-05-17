@@ -27,7 +27,8 @@ const STREET_LENGTH = 100
 		, DURATION = 5 * MINUTES_TO_SECONDS
 		, RUN_ID = Date.now() % 1000
 		, OUTPUT_FILE = `./out/output-${RUN_ID}.xyz`
-		, P = 30;
+		, P = 30
+		, INPUT_FILE = './cars/cars-353.json';
 
 const stoplights = [{
 	phi: 0,
@@ -65,7 +66,12 @@ const streetsRepo = {
 	},
 };
 
-const streets = Object.values(streetsRepo).reverse();
+const streets = (() => {
+	if (INPUT_FILE) {
+		return require(INPUT_FILE);
+	}
+	return Object.values(streetsRepo).reverse();
+})();
 
 const outputStream = fs.createWriteStream(OUTPUT_FILE);
 const bar = new CLIProgress.Bar({}, CLIProgress.Presets.shades_classic);
@@ -91,24 +97,42 @@ const generateCarGroup = (s, length) => Array.from({ length }).map((_, i) => ({
 const every = (coll, fn) => coll.reduce((memo, val, i) => memo && fn(val, i), true);
 const isCarGroupOK = cars => every(cars, (car, i) => every(cars.slice(0, i), c => car.x - c.x - c.length - JAM_DISTANCE_0 > 0));
 
-streets.forEach(s => {
-	s.cars = (() => {
-		let n = 10000;
-		do {
-			const carGroup = generateCarGroup(s, Math.ceil(N / streets.length));
-			carGroup.sort((a, b) => a.x - b.x);
-			if (isCarGroupOK(carGroup))
-				return carGroup;
-		} while (n-- > 0);
-		return null;
-	})();
-	if (!s.cars) {
-		throw new Error('Could not generate car group');
-	}
-	s.cars.forEach((c, i) => {
-		c.next = s.cars[(i + 1) % s.cars.length];
+if (INPUT_FILE) {
+	streets.forEach(s => {
+		s.cars.forEach(car => {
+			car.next = s.cars.find(c => car.next === c.id);
+		});
 	});
-});
+} else {
+	streets.forEach(s => {
+		s.cars = (() => {
+			let n = 10000;
+			do {
+				const carGroup = generateCarGroup(s, Math.ceil(N / streets.length));
+				carGroup.sort((a, b) => a.x - b.x);
+				if (isCarGroupOK(carGroup))
+					return carGroup;
+			} while (n-- > 0);
+			return null;
+		})();
+		if (!s.cars) {
+			throw new Error('Could not generate car group');
+		}
+		s.cars.forEach((c, i) => {
+			c.next = s.cars[(i + 1) % s.cars.length];
+		});
+	});
+	
+	const carDump = streets.map(s => ({
+		...s,
+		cars: s.cars.map(c => ({
+			...c,
+			next: c.next.id
+		}))
+	}));
+	fs.writeFileSync(`./cars/cars-${RUN_ID}.json`, JSON.stringify(carDump, null, 2));
+}
+
 
 const totalTimeSteps = Math.ceil(DURATION / 0.01)
 		, captureEvery = Math.ceil(DURATION / FPS / 0.01)
