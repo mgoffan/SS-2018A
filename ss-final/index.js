@@ -37,7 +37,7 @@ const STREET_LENGTH = 100
 		, STREETS = 3
 		, CAR_LENGTH = 5.26
 		, CAR_WIDTH = 1.76
-		, N = 20
+		, N = 16
 		, DESIRED_VELOCITY = 8.333
 		, REACTION_TIME = 1.6
 		, MAXIMUM_ACCELERATION = 0.73
@@ -52,7 +52,7 @@ const STREET_LENGTH = 100
 		, RUN_ID = Date.now() % 1000
 		, OUTPUT_FILE = `./out/output-${RUN_ID}.xyz`
 		, P = 30
-		, INPUT_FILE = './cars/cars-29.json';//'./cars/cars-860.json';//'./cars/cars-353.json';
+		, INPUT_FILE = null;//'./cars/cars-29.json';//'./cars/cars-860.json';//'./cars/cars-353.json';
 
 const stoplights = [{
 	phi: 0,
@@ -68,6 +68,11 @@ const stoplights = [{
 	phi: 0,
 	id: 's2',
 	x: STREETS * STREET_LENGTH / 3,
+	y: STREETS * STREET_LENGTH / 3
+}, {
+	phi: 0,
+	id: 's3',
+	x: STREETS * STREET_LENGTH / 3 * 2,
 	y: STREETS * STREET_LENGTH / 3
 }];
 const stoplightRepo = stoplights.reduce((memo, val) => {
@@ -87,6 +92,18 @@ const streetsRepo = {
 		direction: 'x',
 		stoplights: ['s1', 's0'],
 		y: STREETS * STREET_LENGTH / 3 * 2
+	},
+	"3": {
+		id: 3,
+		direction: 'y',
+		stoplights: ['s1', 's3'],
+		y: STREETS * STREET_LENGTH / 3 * 2
+	},
+	"4": {
+		id: 4,
+		direction: 'x',
+		stoplights: ['s3', 's2'],
+		y: STREETS * STREET_LENGTH / 3
 	},
 };
 
