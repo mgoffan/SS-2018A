@@ -37,7 +37,7 @@ const STREET_LENGTH = 100
 		, STREETS = 3
 		, CAR_LENGTH = 5.26
 		, CAR_WIDTH = 1.76
-		, N = 10
+		, N = 20
 		, DESIRED_VELOCITY = 8.333
 		, REACTION_TIME = 1.6
 		, MAXIMUM_ACCELERATION = 0.73
@@ -52,7 +52,7 @@ const STREET_LENGTH = 100
 		, RUN_ID = Date.now() % 1000
 		, OUTPUT_FILE = `./out/output-${RUN_ID}.xyz`
 		, P = 30
-		, INPUT_FILE = './cars/cars-860.json';//'./cars/cars-353.json';
+		, INPUT_FILE = './cars/cars-29.json';//'./cars/cars-860.json';//'./cars/cars-353.json';
 
 const stoplights = [{
 	phi: 0,
@@ -181,21 +181,7 @@ const ovitoXYZExporter = (streets, t) => {
 		return `Street ${st.id}: [${str}]`;
 	}).join(', ')
 	outputStream.write(`t = ${t.toFixed(6)}, ${stoplightState}\n`);
-	stoplights.forEach((sl, i) => {
-		if (Math.floor((t - sl.phi) / P) % 2 === 0) {
-			outputStream.write([6000 + i * 2, sl.x.toFixed(6), sl.y.toFixed(6), (15).toFixed(6), (0).toFixed(6), (5).toFixed(6), (5).toFixed(6), (1).toFixed(6)].join('\t') + '\n');
-		} else {
-			outputStream.write([6000 + i * 2, sl.x.toFixed(6), sl.y.toFixed(6), (15).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (5).toFixed(6)].join('\t') + '\n');
-		}
-	});
 	streets.forEach((s, i) => {
-		if (s.direction === 'x') {
-			outputStream.write([5000 + i * 2 + 1, (0).toFixed(6)                      , s.y.toFixed(6)                      , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
-			outputStream.write([5000 + i * 2 + 2, (STREETS * STREET_LENGTH).toFixed(6), s.y.toFixed(6)                      , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');	
-		} else {
-			outputStream.write([5000 + i * 2 + 1, s.x.toFixed(6)                      , (0).toFixed(6)                      , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
-			outputStream.write([5000 + i * 2 + 2, s.x.toFixed(6)                      , (STREETS * STREET_LENGTH).toFixed(6), (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');	
-		}	
 		s.cars.forEach(c => {
 			if (s.direction === 'x') {
 				outputStream.write([c.id, c.x.toFixed(6), s.y.toFixed(6), c.vx.toFixed(6), c.vy.toFixed(6), (c.length / 2).toFixed(6), (c.length / 2).toFixed(6), (c.width / 2).toFixed(6)].join('\t') + '\n');
@@ -203,8 +189,21 @@ const ovitoXYZExporter = (streets, t) => {
 				outputStream.write([c.id, s.x.toFixed(6), c.x.toFixed(6), c.vx.toFixed(6), c.vy.toFixed(6), (c.width / 2).toFixed(6) , (c.width / 2).toFixed(6) , (c.length / 2).toFixed(6)].join('\t') + '\n');
 			}
 		});
+		if (s.direction === 'x') {
+			outputStream.write([5000 + i * 2 + 1, (0).toFixed(6)                      , s.y.toFixed(6)                      , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
+			outputStream.write([5000 + i * 2 + 2, (STREETS * STREET_LENGTH).toFixed(6), s.y.toFixed(6)                      , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');	
+		} else {
+			outputStream.write([5000 + i * 2 + 1, s.x.toFixed(6)                      , (0).toFixed(6)                      , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
+			outputStream.write([5000 + i * 2 + 2, s.x.toFixed(6)                      , (STREETS * STREET_LENGTH).toFixed(6), (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');	
+		}
 	});
-	
+	stoplights.forEach((sl, i) => {
+		if (Math.floor((t - sl.phi) / P) % 2 === 0) {
+			outputStream.write([6000 + i * 2, sl.x.toFixed(6), sl.y.toFixed(6), (15).toFixed(6), (0).toFixed(6), (5).toFixed(6), (5).toFixed(6), (1).toFixed(6)].join('\t') + '\n');
+		} else {
+			outputStream.write([6000 + i * 2, sl.x.toFixed(6), sl.y.toFixed(6), (15).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (5).toFixed(6)].join('\t') + '\n');
+		}
+	});
 };
 
 ovitoXYZExporter(streets, 0);
@@ -311,26 +310,8 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 				console.log(chalk.red(`STOPLIGHT ${sl.id} in direction ${street.direction} is RED at t=${time}`));
 				const x = street.direction === 'x' ? sl.x : sl.y;
 				const desiredIndex = minByIndex(street.cars, c => {
-					return c.x > x ? STREETS * STREET_LENGTH + x - c.x : x - c.x;
+					return (c.x > x || Math.abs(x - c.x) < 5) ? STREETS * STREET_LENGTH + x - c.x : x - c.x;
 				});
-
-
-
-				// const idx = street.cars, )
-				
-				// street.cars.findIndex(c => {
-				// 	if (street.direction === 'x') return c.x > sl.x;
-				// 	return c.x > sl.y;
-				// });
-				// if (~idx) {
-				// 	console.log(`first car after stoplight is ${street.cars[idx].id}`);
-				// } else {
-				// 	console.log(`first car after stoplight is none`);
-				// }
-				// const desiredIndex = (() => {
-				// 	if (~idx) return idx - 1 < 0 ? street.cars.length - 1 : idx - 1;
-				// 	return maxByIndex(street.cars, 'x');
-				// })();
 				console.log(`first car before stoplight is ${street.cars[desiredIndex].id}`);
 				if (typeof(street.cars[desiredIndex].next) === 'string') {
 					/// all cars are waiting the other stoplight
