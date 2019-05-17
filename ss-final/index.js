@@ -21,11 +21,23 @@ const maxByIndex = (arr, iteratee) => {
   return arr.findIndex(item => func(item) === max);
 };
 
+const minBy = (arr, iteratee) => {
+  const func = typeof iteratee === 'function' ? iteratee : item => item[iteratee];
+  const min = Math.min(...arr.map(func));
+  return arr.find(item => func(item) === min);
+};
+
+const minByIndex = (arr, iteratee) => {
+  const func = typeof iteratee === 'function' ? iteratee : item => item[iteratee];
+  const min = Math.min(...arr.map(func));
+  return arr.findIndex(item => func(item) === min);
+};
+
 const STREET_LENGTH = 100
 		, STREETS = 3
 		, CAR_LENGTH = 5.26
 		, CAR_WIDTH = 1.76
-		, N = 4
+		, N = 10
 		, DESIRED_VELOCITY = 8.333
 		, REACTION_TIME = 1.6
 		, MAXIMUM_ACCELERATION = 0.73
@@ -40,7 +52,7 @@ const STREET_LENGTH = 100
 		, RUN_ID = Date.now() % 1000
 		, OUTPUT_FILE = `./out/output-${RUN_ID}.xyz`
 		, P = 30
-		, INPUT_FILE = './cars/cars-353.json';
+		, INPUT_FILE = './cars/cars-860.json';//'./cars/cars-353.json';
 
 const stoplights = [{
 	phi: 0,
@@ -297,19 +309,28 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 			if (isOn) {
 				/// stoplight turned on, means wen RED in the direction of the street
 				console.log(chalk.red(`STOPLIGHT ${sl.id} in direction ${street.direction} is RED at t=${time}`));
-				const idx = street.cars.findIndex(c => {
-					if (street.direction === 'x') return c.x > sl.x;
-					return c.x > sl.y;
+				const x = street.direction === 'x' ? sl.x : sl.y;
+				const desiredIndex = minByIndex(street.cars, c => {
+					return c.x > x ? STREETS * STREET_LENGTH + x - c.x : x - c.x;
 				});
-				if (~idx) {
-					console.log(`first car after stoplight is ${street.cars[idx].id}`);
-				} else {
-					console.log(`first car after stoplight is none`);
-				}
-				const desiredIndex = (() => {
-					if (~idx) return idx - 1 < 0 ? street.cars.length - 1 : idx - 1;
-					return maxByIndex(street.cars, 'x');
-				})();
+
+
+
+				// const idx = street.cars, )
+				
+				// street.cars.findIndex(c => {
+				// 	if (street.direction === 'x') return c.x > sl.x;
+				// 	return c.x > sl.y;
+				// });
+				// if (~idx) {
+				// 	console.log(`first car after stoplight is ${street.cars[idx].id}`);
+				// } else {
+				// 	console.log(`first car after stoplight is none`);
+				// }
+				// const desiredIndex = (() => {
+				// 	if (~idx) return idx - 1 < 0 ? street.cars.length - 1 : idx - 1;
+				// 	return maxByIndex(street.cars, 'x');
+				// })();
 				console.log(`first car before stoplight is ${street.cars[desiredIndex].id}`);
 				if (typeof(street.cars[desiredIndex].next) === 'string') {
 					/// all cars are waiting the other stoplight
