@@ -21,7 +21,7 @@ genetic.seed = function() {
 genetic.mutate = function(entity) {
 	
 	// toin coss what to change
-	const prop = ['period', 'phi0', 'phi1', 'phi2'].find(p => Math.random() > 0.5);
+	const prop = ['period', 'phi0', 'phi1', 'phi2'].find(() => Math.random() > 0.5);
 	
 	// chromosomal drift
 	return Object.assign({}, entity, {
@@ -29,55 +29,37 @@ genetic.mutate = function(entity) {
 	});
 };
 
+const pickBy = (obj, keys) => Object.keys(obj).filter(k => ~keys.indexOf(k)).reduce((memo, val) => {
+	memo[val] = obj[val];
+	return memo;
+});
+
 genetic.crossover = function(mother, father) {
 
 	// two-point crossover
-	var len = mother.length;
-	var ca = Math.floor(Math.random()*len);
-	var cb = Math.floor(Math.random()*len);		
-	if (ca > cb) {
-		var tmp = cb;
-		cb = ca;
-		ca = tmp;
-	}
-		
-	var son = father.substr(0,ca) + mother.substr(ca, cb-ca) + father.substr(cb);
-	var daughter = mother.substr(0,ca) + father.substr(ca, cb-ca) + mother.substr(cb);
+	const fatherProps = ['period', 'phi0', 'phi1', 'phi2'].filter(() => Math.random() > 0.5);
+	const motherProps = ['period', 'phi0', 'phi1', 'phi2'].filter(p => !~fatherProps.indexOf(p));
+
+	const son = Object.assign({}, father, pickBy(mother, motherProps));
+	const daughter = Object.assign({}, mother, pickBy(father, fatherProps));
 	
 	return [son, daughter];
 };
 
 genetic.fitness = function(entity) {
-	var fitness = 0;
 	
-	var i;
-	for (i=0;i<entity.length;++i) {
-		// increase fitness for each character that matches
-		if (entity[i] == this.userData["solution"][i])
-			fitness += 1;
-		
-		// award fractions of a point as we get warmer
-		fitness += (127-Math.abs(entity.charCodeAt(i) - this.userData["solution"].charCodeAt(i)))/50;
-	}
+	/// run program here synchronously
 
-	return fitness;
+	
+
+	return;
 };
 
-genetic.generation = function(pop, generation, stats) {
-	// stop running once we've reached the solution
-	return pop[0].entity != this.userData["solution"];
-};
 
-genetic.notification = function(pop, generation, stats, isFinished) {
-	
-	var value = pop[0].entity;
-	this.last = this.last||value;
-	
-	if (pop != 0 && value == this.last)
-		return;
-	
-	this.last = value;
-};
+// genetic.generation = function(pop, generation, stats) {
+// 	// stop running once we've reached the solution
+// 	return pop[0].entity != this.userData["solution"];
+// };
 
 
 const config = {
