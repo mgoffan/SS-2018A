@@ -200,9 +200,9 @@ const ovitoXYZExporter = (streets, t) => {
 			const deltaX = l.id === 1 ? -LANE_WIDTH / 2 : LANE_WIDTH / 2;
 			l.cars.forEach(c => {
 				if (s.direction === 'x') {
-					outputStream.write([c.id, c.x.toFixed(6)           , (s.y + deltaX).toFixed(6), c.vx.toFixed(6), c.vy.toFixed(6), (c.length / 2).toFixed(6), (c.length / 2).toFixed(6), (c.width / 2).toFixed(6)].join('\t') + '\n');
+					outputStream.write([c.id, (c.x + CAR_LENGTH / 2).toFixed(6)           , (s.y + deltaX).toFixed(6), c.vx.toFixed(6), c.vy.toFixed(6), (c.length / 2).toFixed(6), (c.length / 2).toFixed(6), (c.width / 2).toFixed(6)].join('\t') + '\n');
 				} else {
-					outputStream.write([c.id, (s.x + deltaX).toFixed(6), c.x.toFixed(6)           , c.vx.toFixed(6), c.vy.toFixed(6), (c.width / 2).toFixed(6) , (c.width / 2).toFixed(6) , (c.length / 2).toFixed(6)].join('\t') + '\n');
+					outputStream.write([c.id, (s.x + deltaX).toFixed(6), (c.x + CAR_LENGTH / 2).toFixed(6)           , c.vx.toFixed(6), c.vy.toFixed(6), (c.width / 2).toFixed(6) , (c.width / 2).toFixed(6) , (c.length / 2).toFixed(6)].join('\t') + '\n');
 				}
 			});
 		});
@@ -327,9 +327,6 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 							const t = c.vx / c.desiredDeceleration;
 							return c.vx * t - c.desiredDeceleration * t * t / 2 > x - c.x;
 						})();
-						if (c.x <= x && doesNotHaveBreakingDistance) {
-							console.log(time, c.id, c.x, c.vx, c.desiredDeceleration, sl.id, sl.x, sl.y, l.id, street.id);
-						}
 						return (c.x > x || doesNotHaveBreakingDistance) ? STREETS * STREET_LENGTH + 2 * LANE_WIDTH + x - c.x : x - c.x;
 					});
 					const car = l.cars[desiredIndex];
