@@ -20,7 +20,7 @@ const STREET_LENGTH = 100
 		, CAR_LENGTH = 5.26
 		, CAR_WIDTH = 1.76
 		, LANE_WIDTH = 3
-		, N = 16
+		, N = 64
 		, DESIRED_VELOCITY = 8.333
 		, REACTION_TIME = 1.6
 		, MAXIMUM_ACCELERATION = 0.73
@@ -40,23 +40,23 @@ const STREET_LENGTH = 100
 const stoplights = [{
 	phi: 0,
 	id: 's0',
-	x: STREETS * STREET_LENGTH / 3,
-	y: STREETS * STREET_LENGTH / 3 * 2
+	x: STREETS * STREET_LENGTH / 3 + LANE_WIDTH / 2,
+	y: STREETS * STREET_LENGTH / 3 * 2 + LANE_WIDTH / 2
 }, {
 	phi: 0,
 	id: 's1',
-	x: STREETS * STREET_LENGTH / 3 * 2,
-	y: STREETS * STREET_LENGTH / 3 * 2
+	x: STREETS * STREET_LENGTH / 3 * 2 + LANE_WIDTH / 2,
+	y: STREETS * STREET_LENGTH / 3 * 2 + LANE_WIDTH / 2
 }, {
 	phi: 0,
 	id: 's2',
-	x: STREETS * STREET_LENGTH / 3,
-	y: STREETS * STREET_LENGTH / 3
+	x: STREETS * STREET_LENGTH / 3 + LANE_WIDTH / 2,
+	y: STREETS * STREET_LENGTH / 3 + LANE_WIDTH / 2
 }, {
 	phi: 0,
 	id: 's3',
-	x: STREETS * STREET_LENGTH / 3 * 2,
-	y: STREETS * STREET_LENGTH / 3
+	x: STREETS * STREET_LENGTH / 3 * 2 + LANE_WIDTH / 2,
+	y: STREETS * STREET_LENGTH / 3 + LANE_WIDTH / 2
 }];
 const stoplightRepo = stoplights.reduce((memo, val) => {
 	memo[val.id] = val;
@@ -68,25 +68,25 @@ const streetsRepo = {
 		id: 1,
 		direction: 'y',
 		stoplights: ['s0', 's2'],
-		x: STREETS * STREET_LENGTH / 3,
+		x: STREETS * STREET_LENGTH / 3 + LANE_WIDTH / 2,
 	},
 	"2": {
 		id: 2,
 		direction: 'x',
 		stoplights: ['s1', 's0'],
-		y: STREETS * STREET_LENGTH / 3 * 2
+		y: STREETS * STREET_LENGTH / 3 * 2 + LANE_WIDTH / 2
 	},
 	"3": {
 		id: 3,
 		direction: 'y',
 		stoplights: ['s1', 's3'],
-		x: STREETS * STREET_LENGTH / 3 * 2
+		x: STREETS * STREET_LENGTH / 3 * 2 + LANE_WIDTH / 2
 	},
 	"4": {
 		id: 4,
 		direction: 'x',
 		stoplights: ['s3', 's2'],
-		y: STREETS * STREET_LENGTH / 3
+		y: STREETS * STREET_LENGTH / 3 + LANE_WIDTH / 2
 	},
 };
 
@@ -104,7 +104,14 @@ const generateCarGroup = (s, l, length) => Array.from({ length }).map((_, i) => 
 	id: `${s.id}${l}${i}`,
 	length: CAR_LENGTH,
 	width: CAR_WIDTH,
-	x: Math.random() * STREET_LENGTH * STREETS,
+	x: (() => {
+		const x0 = Math.random() * STREET_LENGTH * STREETS;
+		if (x0 > STREETS * STREET_LENGTH / 3 * 2)
+			return x0 + LANE_WIDTH + LANE_WIDTH;
+		if (x0 > STREETS * STREET_LENGTH / 3)
+			return x0 + LANE_WIDTH;
+		return x0;
+	})(),
 	y: 0,
 	desiredVelocity: DESIRED_VELOCITY * (1 + Math.random()),
 	reactionTime: REACTION_TIME,
@@ -119,7 +126,14 @@ const generateCarGroup = (s, l, length) => Array.from({ length }).map((_, i) => 
 }));
 
 const every = (coll, fn) => coll.reduce((memo, val, i) => memo && fn(val, i), true);
-const isCarGroupOK = cars => every(cars, (car, i) => every(cars.slice(0, i), c => car.x - c.x - c.length - JAM_DISTANCE_0 > 0));
+const isCarGroupOK = cars => every(cars, (car, i) => {
+	const isNotInJoint = i => {
+		const sx = (STREETS * STREET_LENGTH + 2 * LANE_WIDTH) / 3 * i;
+		return !(car.x >= sx - LANE_WIDTH / 2 - CAR_LENGTH && car.x <= sx - LANE_WIDTH / 2);
+	};
+	const doesNotOverlapWithPreviousCars = c => car.x - c.x - c.length - JAM_DISTANCE_0 > 0;
+	return every([1, 2], isNotInJoint) && every(cars.slice(0, i), doesNotOverlapWithPreviousCars);
+});
 
 if (INPUT_FILE) {
 	streets.forEach(s => {
@@ -190,11 +204,11 @@ const ovitoXYZExporter = (streets, t) => {
 			});
 		});
 		if (s.direction === 'x') {
-			outputStream.write([5000 + i * 2 + 1, (0).toFixed(6)                      , s.y.toFixed(6)                      , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
-			outputStream.write([5000 + i * 2 + 2, (STREETS * STREET_LENGTH).toFixed(6), s.y.toFixed(6)                      , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');	
+			outputStream.write([5000 + i * 2 + 1, (0).toFixed(6)                                       , s.y.toFixed(6)                      , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
+			outputStream.write([5000 + i * 2 + 2, (STREETS * STREET_LENGTH + 2 * LANE_WIDTH).toFixed(6), s.y.toFixed(6)                      , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');	
 		} else {
-			outputStream.write([5000 + i * 2 + 1, s.x.toFixed(6)                      , (0).toFixed(6)                      , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
-			outputStream.write([5000 + i * 2 + 2, s.x.toFixed(6)                      , (STREETS * STREET_LENGTH).toFixed(6), (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');	
+			outputStream.write([5000 + i * 2 + 1, s.x.toFixed(6)                      , (0).toFixed(6)                                       , (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');
+			outputStream.write([5000 + i * 2 + 2, s.x.toFixed(6)                      , (STREETS * STREET_LENGTH + 2 * LANE_WIDTH).toFixed(6), (0).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (0.5).toFixed(6)].join('\t') + '\n');	
 		}
 	});
 	stoplights.forEach((sl, i) => {
@@ -213,35 +227,22 @@ const debug = [];
 const sForStreet = (street, lane) => car => {
 	if (typeof(car.next) === 'string') {
 		const stoplight = stoplightRepo[car.next];
-		const x = street.direction === 'x' ? stoplight.x : stoplight.y;
+		const x = (street.direction === 'x' ? stoplight.x : stoplight.y) - LANE_WIDTH / 2;
 		if (x < car.x + car.length) {
 			const prevNext = lane.cars.find(c => c.id === car.prevNext);
-			if (!prevNext) {
-				console.log(stoplight);
-				console.log(car);
-			}
-			// debug.push(`s1(car = ${car.id}) = ${prevNext.x} - ${car.x} - ${car.length}`);
 			return prevNext.x - car.x - car.length;
 		}
-		// assert(STREETS * STREET_LENGTH / 2 > car.x + car.length, `car[id = ${car.id}].x = ${car.x}, ${STREETS * STREET_LENGTH / 2}`);
-		// debug.push(`s2(car = ${car.id}) = ${stoplight.x} - ${car.x} - ${car.length}`);
 		return x - car.x - car.length;
 	}
 	if (car.next.x > car.x) {
-		// assert(car.next.x - car.x - car.length > 0);
-		// debug.push(`s2(car = ${car.id}) = ${car.next.x} - ${car.x} - ${car.length}`);
 		return car.next.x - car.x - car.length;
 	}
-	// assert(STREETS * STREET_LENGTH + car.next.x - car.x - car.length > 0, `next[id = ${car.next.id}].x = ${car.next.x}, car[id = ${car.id}].x = ${car.x}`);
-	// debug.push(`s3(car = ${car.id}) = ${car.next.x} - ${car.x} - ${car.length}`);
-	return STREETS * STREET_LENGTH + car.next.x - car.x - car.length;
+	return STREETS * STREET_LENGTH + 2 * LANE_WIDTH + car.next.x - car.x - car.length;
 };
 const sstar = car => {
 	if (typeof(car.next) === 'string') {
-		// debug.push(`sstar1(car = ${car.id}) = ${car.jamDistance0} + ${car.jamDistance1} * Math.sqrt(Math.abs(${car.vx} / ${car.desiredVelocity})) + ${car.reactionTime} * ${car.vx} + ${car.vx} * (${car.vx} - 0) / 2 * Math.sqrt(${car.maximumAcceleration} * ${car.desiredDeceleration})`);
 		return car.jamDistance0 + car.jamDistance1 * Math.sqrt(Math.abs(car.vx / car.desiredVelocity)) + car.reactionTime * car.vx + car.vx * (car.vx - 0) / 2 * Math.sqrt(car.maximumAcceleration * car.desiredDeceleration);
 	}
-	// debug.push(`sstar2(car = ${car.id}) = ${car.jamDistance0} + ${car.jamDistance1} * Math.sqrt(${car.vx} / ${car.desiredVelocity}) + ${car.reactionTime} * ${car.vx} + ${car.vx} * (${car.vx} - ${car.next.vx}) / 2 * Math.sqrt(${car.maximumAcceleration} * ${car.desiredDeceleration})`);
 	return car.jamDistance0 + car.jamDistance1 * Math.sqrt(Math.abs(car.vx / car.desiredVelocity)) + car.reactionTime * car.vx + car.vx * (car.vx - car.next.vx) / 2 * Math.sqrt(car.maximumAcceleration * car.desiredDeceleration);
 };
 const accelerationForStreet = (street, lane) => {
@@ -261,16 +262,16 @@ const isStoplightOn = s => sl => {
 streets.forEach(s => {
 	const setCarTargetToStoplight = sl => {
 		/// stoplight is on before starting
-		const x = s.direction === 'x' ? sl.x : sl.y;
+		const x = (s.direction === 'x' ? sl.x : sl.y) - LANE_WIDTH / 2;
 		s.lanes.forEach(l => {
 			const desiredIndex = minByIndex(l.cars, c => {
-				return c.x > x ? STREETS * STREET_LENGTH + x - c.x : x - c.x;
+				return c.x > x ? STREETS * STREET_LENGTH + 2 * LANE_WIDTH + x - c.x : x - c.x;
 			});
 			const car = l.cars[desiredIndex];
 			const otherStoplight = stoplightRepo[s.stoplights[(s.stoplights.indexOf(sl.id) + 1) % s.stoplights.length]];
-			const ox = s.direction === 'x' ? otherStoplight.x : otherStoplight.y;
-			const odist = car.x > ox ? STREETS * STREET_LENGTH - car.x + ox : ox - car.x;
-			const dist = car.x > x ? STREETS * STREET_LENGTH - car.x + x : x - car.x;
+			const ox = (s.direction === 'x' ? otherStoplight.x : otherStoplight.y) + LANE_WIDTH / 2;
+			const odist = car.x > ox ? STREETS * STREET_LENGTH + LANE_WIDTH * 2 - car.x + ox : ox - car.x;
+			const dist = car.x > x ? STREETS * STREET_LENGTH + LANE_WIDTH * 2 - car.x + x : x - car.x;
 			// console.log(sl.id, car.id, dist, odist);
 			if (odist < dist) {
 				console.log(chalk.red(`${sl.id} in direction ${s.direction} before start at t=${-(2 * Math.PI * P - sl.phi) % (2 * Math.PI * P)}`));
@@ -316,10 +317,10 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 			if (isOn) {
 				/// stoplight turned on, means wen RED in the direction of the street
 				console.log(chalk.red(`${sl.id} in direction ${street.direction} is RED at t=${time}`));
-				const x = street.direction === 'x' ? sl.x : sl.y;
+				const x = (street.direction === 'x' ? sl.x : sl.y) - LANE_WIDTH / 2;
 				street.lanes.forEach(l => {
 					const desiredIndex = minByIndex(l.cars, c => {
-						return (c.x > x || Math.abs(x - c.x) < 5) ? STREETS * STREET_LENGTH + x - c.x : x - c.x;
+						return (c.x > x || Math.abs(x - c.x) < 5) ? STREETS * STREET_LENGTH + 2 * LANE_WIDTH + x - c.x : x - c.x;
 					});
 					const car = l.cars[desiredIndex];
 					console.log(`first car before stoplight is ${l.cars[desiredIndex].id}`);
@@ -327,9 +328,9 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 						/// all cars are waiting the other stoplight
 						if (car.next !== sl.id) {
 							const otherStoplight = stoplightRepo[street.stoplights[(street.stoplights.indexOf(sl.id) + 1) % street.stoplights.length]];
-							const ox = street.direction === 'x' ? otherStoplight.x : otherStoplight.y;
-							const dx = (car.x > x || Math.abs(x - car.x) < 5) ? STREETS * STREET_LENGTH + x - car.x : x - car.x;
-							const odx = (car.x > ox || Math.abs(ox - car.x) < 5) ? STREETS * STREET_LENGTH + ox - car.x : ox - car.x;
+							const ox = (street.direction === 'x' ? otherStoplight.x : otherStoplight.y) - LANE_WIDTH / 2;
+							const dx = (car.x > x || Math.abs(x - car.x) < 5) ? STREETS * STREET_LENGTH + LANE_WIDTH * 2 + x - car.x : x - car.x;
+							const odx = (car.x > ox || Math.abs(ox - car.x) < 5) ? STREETS * STREET_LENGTH + LANE_WIDTH * 2 + ox - car.x : ox - car.x;
 							if (dx > odx) {
 								car.shouldFollow = sl.id;
 							} else {
