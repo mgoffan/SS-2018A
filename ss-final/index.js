@@ -34,7 +34,7 @@ const STREET_LENGTH = 100
 		, RUN_ID = Date.now() % 1000
 		, OUTPUT_FILE = `./out/output-${RUN_ID}.xyz`
 		, P = 30 / Math.PI
-		, INPUT_FILE = './cars/cars-912.json';
+		, INPUT_FILE = null;
 
 const stoplights = [{
 	phi: 0,
@@ -171,15 +171,16 @@ Capture every = ${captureEvery}
 const ovitoXYZExporter = (streets, t) => {
 	const totalParticles = streets.reduce((acc, v) => acc + v.cars.length, 0) + streets.length * 2 + stoplights.length;
 	outputStream.write(`${totalParticles}\n`);
-	const stoplightState = streets.map(st => {
-		const str = st.stoplights.map(id => stoplightRepo[id]).map(s => {
-			const onx = Math.sin((t - s.phi) / P) < 0;
-			if (st.direction === 'x') return `${s.id.toUpperCase()}x is ${onx ? 'ON' : 'OFF'}`;
-			return `${s.id.toUpperCase()}y is ${onx ? 'OFF' : 'ON'}`;
-		});
-		return `Street ${st.id}: [${str}]`;
-	}).join(', ')
-	outputStream.write(`t = ${t.toFixed(6)}, ${stoplightState}\n`);
+	// const stoplightState = streets.map(st => {
+	// 	const str = st.stoplights.map(id => stoplightRepo[id]).map(s => {
+	// 		const onx = Math.sin((t - s.phi) / (P / 2)) < 0;
+	// 		if (st.direction === 'x') return `${s.id.toUpperCase()}x is ${onx ? 'ON' : 'OFF'}`;
+	// 		return `${s.id.toUpperCase()}y is ${onx ? 'OFF' : 'ON'}`;
+	// 	});
+	// 	return `Street ${st.id}: [${str}]`;
+	// }).join(', ')
+	outputStream.write(`t = ${t.toFixed(6)}\n`);
+	// outputStream.write(`t = ${t.toFixed(6)}, ${stoplightState}\n`);
 	streets.forEach((s, i) => {
 		s.cars.forEach(c => {
 			if (s.direction === 'x') {
@@ -276,12 +277,12 @@ streets.forEach(s => {
 		const dist = car.x > x ? STREETS * STREET_LENGTH - car.x + x : x - car.x;
 		// console.log(sl.id, car.id, dist, odist);
 		if (odist < dist) {
-			console.log(chalk.red(`STOPLIGHT ${sl.id} is RED in direction ${s.direction} before start at t=${-((P - sl.phi) % P)}`));
+			console.log(chalk.red(`${sl.id} in direction ${s.direction} before start at t=${-(2 * Math.PI * P - sl.phi) % (2 * Math.PI * P)}`));
 			return;
 		}
 		car.prevNext = car.next.id;
 		car.next = sl.id;
-		console.log(chalk.red(`STOPLIGHT ${sl.id} is RED in direction ${s.direction} before start at t=${-((P - sl.phi) % P)} on car[id = ${car.id}] at index ${desiredIndex}, chased = ${car.prevNext}`));
+		console.log(chalk.red(`${sl.id} in direction ${s.direction} before start at t=${-(2 * Math.PI * P - sl.phi) % (2 * Math.PI * P)} on car[id = ${car.id}] at index ${desiredIndex}, chased = ${car.prevNext}`));
 	};
 	s.stoplights.map(id => stoplightRepo[id]).filter(isStoplightOn(s)).forEach(setCarTargetToStoplight);
 });
@@ -302,18 +303,21 @@ let maxSpeed = 0;
 // bar.start(DURATION, 0);
 for (let time = 0; time < DURATION; time += TIME_STEP) {
 	streets.forEach(street => {
+		if (!time) return;
 		street.stoplights.map(id => stoplightRepo[id]).forEach(sl => {
 			const isOn = (() => {
-				if (street.direction === 'x') return Math.sin((time - sl.phi) / P) >= 0 && Math.sin((time - TIME_STEP - sl.phi) / P) < 0;
-				return 1 - Math.sin((time - sl.phi) / P) >= 0 && 1 - Math.sin((time - TIME_STEP - sl.phi) / P) < 0;
+				if (street.direction === 'x')
+					return Math.sin((time - sl.phi) / P) >= 0 && Math.sin((time - TIME_STEP - sl.phi) / P) < 0;
+				return Math.sin((time - sl.phi) / P) <= 0 && Math.sin((time - TIME_STEP - sl.phi) / P) > 0;
 			})();
 			const isOff = (() => {
-				if (street.direction === 'x') return 1 - Math.sin((time - sl.phi) / P) >= 0 && 1 - Math.sin((time - TIME_STEP - sl.phi) / P) < 0;
+				if (street.direction === 'x')
+					return Math.sin((time - sl.phi) / P) <= 0 && Math.sin((time - TIME_STEP - sl.phi) / P) > 0;
 				return Math.sin((time - sl.phi) / P) >= 0 && Math.sin((time - TIME_STEP - sl.phi) / P) < 0;
 			})();
 			if (isOn) {
 				/// stoplight turned on, means wen RED in the direction of the street
-				console.log(chalk.red(`STOPLIGHT ${sl.id} in direction ${street.direction} is RED at t=${time}`));
+				console.log(chalk.red(`${sl.id} in direction ${street.direction} is RED at t=${time}`));
 				const x = street.direction === 'x' ? sl.x : sl.y;
 				const desiredIndex = minByIndex(street.cars, c => {
 					return (c.x > x || Math.abs(x - c.x) < 5) ? STREETS * STREET_LENGTH + x - c.x : x - c.x;
@@ -334,7 +338,7 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 							car.next = sl.id
 						}
 					}
-					// console.log(chalk.green(`\nSTOPLIGHT ${sl.id} ON at t=${time} but all cars are stuck in other stoplight`));
+					// console.log(chalk.green(`\n${sl.id} ON at t=${time} but all cars are stuck in other stoplight`));
 					showChaseStatus();
 					return;
 				}
@@ -342,10 +346,10 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 				car.prevNext = car.next.id;
 				car.next = sl.id;
 				showChaseStatus();
-				// console.log(chalk.green(`\nSTOPLIGHT ${sl.id} ON at t=${time} on car[id = ${street.cars[desiredIndex].id}] at index ${desiredIndex}, chases = ${sl.id}, chased = ${street.cars[desiredIndex].prevNext}, idx = ${desiredIndex}`));
+				// console.log(chalk.green(`\n${sl.id} ON at t=${time} on car[id = ${street.cars[desiredIndex].id}] at index ${desiredIndex}, chases = ${sl.id}, chased = ${street.cars[desiredIndex].prevNext}, idx = ${desiredIndex}`));
 			} else if (isOff) {
 				/// stoplight turned off, this means its GREEN in the direction of the street
-				console.log(chalk.green(`STOPLIGHT ${sl.id} in direction ${street.direction} is GREEN at t=${time}`));
+				console.log(chalk.green(`${sl.id} in direction ${street.direction} is GREEN at t=${time}`));
 				const carExpectingOtherStoplight = street.cars.find(c => c.shouldFollow);
 				if (carExpectingOtherStoplight) {
 					console.log(`car ${carExpectingOtherStoplight.id} is stopped by ${carExpectingOtherStoplight.next} and will be stopped by ${carExpectingOtherStoplight.shouldFollow}`)
@@ -353,7 +357,7 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 						console.log(`stoplight ${sl.id} is now GREEN => car ${carExpectingOtherStoplight.id} should just keep stopped at ${carExpectingOtherStoplight.next}`);
 						// carExpectingOtherStoplight.next = street.cars.find(c => c.id === carExpectingOtherStoplight.prevNext);
 						delete carExpectingOtherStoplight.shouldFollow;
-						// console.log(chalk.red(`\nSTOPLIGHT ${sl.id} OFF at t=${time}, car ${carExpectingOtherStoplight.id} was to stop, but i'm off, so he'll chase ${carExpectingOtherStoplight.next.id}`));
+						// console.log(chalk.red(`\n${sl.id} OFF at t=${time}, car ${carExpectingOtherStoplight.id} was to stop, but i'm off, so he'll chase ${carExpectingOtherStoplight.next.id}`));
 						showChaseStatus();
 						return;
 					}
@@ -370,7 +374,7 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 					return;
 				}
 				cars.forEach(car => {
-					// console.log(chalk.red(`\nSTOPLIGHT ${sl.id} OFF at t=${time} on car[id = ${car.id}], chases = ${car.prevNext}`));
+					// console.log(chalk.red(`\n${sl.id} OFF at t=${time} on car[id = ${car.id}], chases = ${car.prevNext}`));
 					car.next = street.cars.find(c => c.id === car.prevNext);
 					if (typeof(car.prevNext) !== 'string') {
 						delete car.prevNext;
