@@ -35,28 +35,28 @@ const STREET_LENGTH = 100
 		, RUN_ID = Date.now() % 1000
 		, OUTPUT_FILE = `./out/output-${RUN_ID}.xyz`
 		, P = 30 / Math.PI
-		, INPUT_FILE = null;
+		, INPUT_FILE = null;//'./cars/cars-219.json';
 
 const stoplights = [{
 	phi: 0,
 	id: 's0',
-	x: STREETS * STREET_LENGTH / 3 + LANE_WIDTH / 2,
-	y: STREETS * STREET_LENGTH / 3 * 2 + LANE_WIDTH / 2
+	x: (STREETS * STREET_LENGTH + 2 * LANE_WIDTH) / 3 + LANE_WIDTH / 2,
+	y: (STREETS * STREET_LENGTH + 2 * LANE_WIDTH) / 3 * 2 + LANE_WIDTH / 2
 }, {
 	phi: 0,
 	id: 's1',
-	x: STREETS * STREET_LENGTH / 3 * 2 + LANE_WIDTH / 2,
-	y: STREETS * STREET_LENGTH / 3 * 2 + LANE_WIDTH / 2
+	x: (STREETS * STREET_LENGTH + 2 * LANE_WIDTH) / 3 * 2 + LANE_WIDTH / 2,
+	y: (STREETS * STREET_LENGTH + 2 * LANE_WIDTH) / 3 * 2 + LANE_WIDTH / 2
 }, {
 	phi: 0,
 	id: 's2',
-	x: STREETS * STREET_LENGTH / 3 + LANE_WIDTH / 2,
-	y: STREETS * STREET_LENGTH / 3 + LANE_WIDTH / 2
+	x: (STREETS * STREET_LENGTH + 2 * LANE_WIDTH) / 3 + LANE_WIDTH / 2,
+	y: (STREETS * STREET_LENGTH + 2 * LANE_WIDTH) / 3 + LANE_WIDTH / 2
 }, {
 	phi: 0,
 	id: 's3',
-	x: STREETS * STREET_LENGTH / 3 * 2 + LANE_WIDTH / 2,
-	y: STREETS * STREET_LENGTH / 3 + LANE_WIDTH / 2
+	x: (STREETS * STREET_LENGTH + 2 * LANE_WIDTH) / 3 * 2 + LANE_WIDTH / 2,
+	y: (STREETS * STREET_LENGTH + 2 * LANE_WIDTH) / 3 + LANE_WIDTH / 2
 }];
 const stoplightRepo = stoplights.reduce((memo, val) => {
 	memo[val.id] = val;
@@ -68,25 +68,25 @@ const streetsRepo = {
 		id: 1,
 		direction: 'y',
 		stoplights: ['s0', 's2'],
-		x: STREETS * STREET_LENGTH / 3 + LANE_WIDTH / 2,
+		x: (STREETS * STREET_LENGTH + 2 * LANE_WIDTH) / 3 + LANE_WIDTH / 2,
 	},
 	"2": {
 		id: 2,
 		direction: 'x',
 		stoplights: ['s1', 's0'],
-		y: STREETS * STREET_LENGTH / 3 * 2 + LANE_WIDTH / 2
+		y: (STREETS * STREET_LENGTH + 2 * LANE_WIDTH) / 3 * 2 + LANE_WIDTH / 2
 	},
 	"3": {
 		id: 3,
 		direction: 'y',
 		stoplights: ['s1', 's3'],
-		x: STREETS * STREET_LENGTH / 3 * 2 + LANE_WIDTH / 2
+		x: (STREETS * STREET_LENGTH + 2 * LANE_WIDTH) / 3 * 2 + LANE_WIDTH / 2
 	},
 	"4": {
 		id: 4,
 		direction: 'x',
 		stoplights: ['s3', 's2'],
-		y: STREETS * STREET_LENGTH / 3 + LANE_WIDTH / 2
+		y: (STREETS * STREET_LENGTH + 2 * LANE_WIDTH) / 3 + LANE_WIDTH / 2
 	},
 };
 
@@ -128,8 +128,8 @@ const generateCarGroup = (s, l, length) => Array.from({ length }).map((_, i) => 
 const every = (coll, fn) => coll.reduce((memo, val, i) => memo && fn(val, i), true);
 const isCarGroupOK = cars => every(cars, (car, i) => {
 	const isNotInJoint = i => {
-		const sx = (STREETS * STREET_LENGTH + 2 * LANE_WIDTH) / 3 * i;
-		return !(car.x >= sx - LANE_WIDTH / 2 - CAR_LENGTH && car.x <= sx - LANE_WIDTH / 2);
+		const sx = (STREETS * STREET_LENGTH + 2 * LANE_WIDTH) / 3 * i - LANE_WIDTH / 2;
+		return !(car.x >= sx - CAR_LENGTH && car.x <= sx);
 	};
 	const doesNotOverlapWithPreviousCars = c => car.x - c.x - c.length - JAM_DISTANCE_0 > 0;
 	return every([1, 2], isNotInJoint) && every(cars.slice(0, i), doesNotOverlapWithPreviousCars);
@@ -137,8 +137,10 @@ const isCarGroupOK = cars => every(cars, (car, i) => {
 
 if (INPUT_FILE) {
 	streets.forEach(s => {
-		s.cars.forEach(car => {
-			car.next = s.cars.find(c => car.next === c.id);
+		s.lanes.forEach(l => {
+			l.cars.forEach(car => {
+				car.next = l.cars.find(c => car.next === c.id);
+			});
 		});
 	});
 } else {
@@ -182,6 +184,7 @@ const totalTimeSteps = Math.ceil(DURATION / 0.01)
 
 console.log(`
 ID = ${RUN_ID}
+Input File = ${INPUT_FILE}
 Running simulation for ${N} cars.
 Total time steps = ${totalTimeSteps}
 FPS = ${FPS}
@@ -213,9 +216,9 @@ const ovitoXYZExporter = (streets, t) => {
 	});
 	stoplights.forEach((sl, i) => {
 		if (Math.sin((t - sl.phi) / P) < 0) {
-			outputStream.write([6000 + i * 2, sl.x.toFixed(6), sl.y.toFixed(6), (15).toFixed(6), (0).toFixed(6), (5).toFixed(6), (5).toFixed(6), (1).toFixed(6)].join('\t') + '\n');
+			outputStream.write([6000 + i * 2, sl.x.toFixed(6), sl.y.toFixed(6), (15).toFixed(6), (0).toFixed(6), (LANE_WIDTH).toFixed(6), (LANE_WIDTH).toFixed(6), (1).toFixed(6)].join('\t') + '\n');
 		} else {
-			outputStream.write([6000 + i * 2, sl.x.toFixed(6), sl.y.toFixed(6), (15).toFixed(6), (0).toFixed(6), (1).toFixed(6), (1).toFixed(6), (5).toFixed(6)].join('\t') + '\n');
+			outputStream.write([6000 + i * 2, sl.x.toFixed(6), sl.y.toFixed(6), (15).toFixed(6), (0).toFixed(6), (1).toFixed(6)         , (1).toFixed(6)         , (LANE_WIDTH).toFixed(6)].join('\t') + '\n');
 		}
 	});
 };
@@ -285,13 +288,12 @@ streets.forEach(s => {
 	s.stoplights.map(id => stoplightRepo[id]).filter(isStoplightOn(s)).forEach(setCarTargetToStoplight);
 });
 
-const showChaseStatus = () => false;
-// streets.forEach(s => {
-// 	console.log(`Street ${s.id} direction ${s.direction}`);
-// 	s.cars.forEach(c => {
-// 		console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}] [${c.shouldFollow}]`);
-// 	});
-// });
+const showChaseStatus = () => streets.forEach(s => s.lanes.forEach(l => {
+	console.log(`Street ${s.id}, lane ${l.id}, direction ${s.direction}`);
+	l.cars.forEach(c => {
+		console.log(`${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id} [${c.prevNext}] [${c.shouldFollow}]`);
+	});
+}));
 showChaseStatus();
 
 // process.exit(0);
@@ -320,7 +322,8 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 				const x = (street.direction === 'x' ? sl.x : sl.y) - LANE_WIDTH / 2;
 				street.lanes.forEach(l => {
 					const desiredIndex = minByIndex(l.cars, c => {
-						return (c.x > x || Math.abs(x - c.x) < 5) ? STREETS * STREET_LENGTH + 2 * LANE_WIDTH + x - c.x : x - c.x;
+						//Math.abs(x - c.x) < 5
+						return (c.x > x || true) ? STREETS * STREET_LENGTH + 2 * LANE_WIDTH + x - c.x : x - c.x;
 					});
 					const car = l.cars[desiredIndex];
 					console.log(`first car before stoplight is ${l.cars[desiredIndex].id}`);
@@ -338,16 +341,12 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 								car.next = sl.id
 							}
 						}
-						// console.log(chalk.green(`\n${sl.id} ON at t=${time} but all cars are stuck in other stoplight`));
-						showChaseStatus();
 						return;
 					}
 					/// the selected car should stop at this stoplight
 					car.prevNext = car.next.id;
 					car.next = sl.id;
 				});
-				showChaseStatus();
-				// console.log(chalk.green(`\n${sl.id} ON at t=${time} on car[id = ${street.cars[desiredIndex].id}] at index ${desiredIndex}, chases = ${sl.id}, chased = ${street.cars[desiredIndex].prevNext}, idx = ${desiredIndex}`));
 			} else if (isOff) {
 				/// stoplight turned off, this means its GREEN in the direction of the street
 				console.log(chalk.green(`${sl.id} in direction ${street.direction} is GREEN at t=${time}`));
@@ -357,24 +356,17 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 						console.log(`car ${carExpectingOtherStoplight.id} is stopped by ${carExpectingOtherStoplight.next} and will be stopped by ${carExpectingOtherStoplight.shouldFollow}`)
 						if (carExpectingOtherStoplight.shouldFollow === sl.id) {
 							console.log(`stoplight ${sl.id} is now GREEN => car ${carExpectingOtherStoplight.id} should just keep stopped at ${carExpectingOtherStoplight.next}`);
-							// carExpectingOtherStoplight.next = street.cars.find(c => c.id === carExpectingOtherStoplight.prevNext);
 							delete carExpectingOtherStoplight.shouldFollow;
-							// console.log(chalk.red(`\n${sl.id} OFF at t=${time}, car ${carExpectingOtherStoplight.id} was to stop, but i'm off, so he'll chase ${carExpectingOtherStoplight.next.id}`));
-							showChaseStatus();
 							return;
 						}
 						console.log(`stoplight ${sl.id} is now GREEN => car ${carExpectingOtherStoplight.id} next stop is ${carExpectingOtherStoplight.shouldFollow}`);
 						carExpectingOtherStoplight.next = carExpectingOtherStoplight.shouldFollow;
 						delete carExpectingOtherStoplight.shouldFollow;
-						showChaseStatus();
 						return;
 					}
 
 					const cars = l.cars.filter(c => c.next === sl.id);
-					if (!cars.length) {
-						showChaseStatus();
-						return;
-					}
+					if (!cars.length) return;
 					cars.forEach(car => {
 						// console.log(chalk.red(`\n${sl.id} OFF at t=${time} on car[id = ${car.id}], chases = ${car.prevNext}`));
 						car.next = l.cars.find(c => c.id === car.prevNext);
@@ -382,8 +374,6 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 							delete car.prevNext;
 						}
 					});
-					
-					showChaseStatus();
 				});
 			}
 		});
@@ -396,7 +386,7 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 				// debug.push('');
 				// debug.push(`car ${c.id} => ${typeof(c.next) === 'string' ? c.next : c.next.id}`);
 				const ax = acceleration(c);
-				const nx = (c.x + c.vx * TIME_STEP + (2 / 3 * ax - 1 / 6 * c.pax) * TIME_STEP * TIME_STEP) % (STREETS * STREET_LENGTH);
+				const nx = (c.x + c.vx * TIME_STEP + (2 / 3 * ax - 1 / 6 * c.pax) * TIME_STEP * TIME_STEP) % (STREETS * STREET_LENGTH + 2 * LANE_WIDTH);
 				const predictedParticle = {
 					...c,
 					x: nx,
@@ -420,7 +410,7 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 					fs.writeFileSync(`./out/cars-${RUN_ID}.json`, JSON.stringify(carOutput, null, 2));
 					outputStream.end();
 					// fs.unlinkSync(OUTPUT_FILE);
-					process.exit(1);
+					({}).a.b;
 				}
 		
 				return {
