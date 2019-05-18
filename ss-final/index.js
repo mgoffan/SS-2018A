@@ -21,7 +21,7 @@ const STREET_LENGTH = 100
 		, CAR_WIDTH = 1.76
 		, LANE_WIDTH = 3
 		, N = 64
-		, DESIRED_VELOCITY = 8.333
+		, DESIRED_VELOCITY = 11.111 * 1.5
 		, REACTION_TIME = 1.6
 		, MAXIMUM_ACCELERATION = 0.73
 		, DESIRED_DECELERATION = 1.67
@@ -225,8 +225,6 @@ const ovitoXYZExporter = (streets, t) => {
 
 ovitoXYZExporter(streets, 0);
 
-const debug = [];
-
 const sForStreet = (street, lane) => car => {
 	if (typeof(car.next) === 'string') {
 		const stoplight = stoplightRepo[car.next];
@@ -301,6 +299,9 @@ showChaseStatus();
 console.log(chalk.underline('Begin'));
 
 let maxSpeed = 0;
+let maxDeceleration = 0;
+const averageSpeed = [];
+const averageDistancesBetweenCars = [];
 bar.start(DURATION, 0);
 for (let time = 0; time < DURATION; time += TIME_STEP) {
 	streets.forEach(street => {
@@ -383,12 +384,14 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 		});
 	});
 
+	let speedSum = 0;
+	let k = 0;
+	let distancesSum = 0;
 	streets.forEach(street => {
 		street.lanes.forEach(l => {
 			const acceleration = accelerationForStreet(street, l);
 			const nextCars = l.cars.map(c => {
 				const ax = acceleration(c);
-				const origx = c.x;
 				const nx = (c.x + c.vx * TIME_STEP + (2 / 3 * ax - 1 / 6 * c.pax) * TIME_STEP * TIME_STEP) % (STREETS * STREET_LENGTH + 2 * LANE_WIDTH);
 				const predictedParticle = {
 					...c,
@@ -427,16 +430,41 @@ for (let time = 0; time < DURATION; time += TIME_STEP) {
 				if (l.cars[i].vx > maxSpeed) {
 					maxSpeed = l.cars[i].vx;
 				}
+				if (l.cars[i].ax < maxDeceleration) {
+					maxDeceleration = l.cars[i].ax;
+				}
+				distancesSum += (() => {
+					const target = typeof(l.cars[i].next) === 'string' ? nextCars.find(c => c.id === l.cars[i].prevNext) : l.cars[i].next;
+					if (target.x > l.cars[i].x) {
+						return target.x - l.cars[i].x - l.cars[i].length;
+					}
+					return (STREETS * STREET_LENGTH + LANE_WIDTH * 2) + target.x - l.cars[i].x - l.cars[i].length;
+				})();
+				speedSum += l.cars[i].vx;
+				k++;
 			});
 		});
 	});
+	averageSpeed.push(speedSum / k);
+	averageDistancesBetweenCars.push(distancesSum / k);
 	if (time % (1 / FPS) < TIME_STEP) {
 		ovitoXYZExporter(streets, time + TIME_STEP);
 	}
 	bar.update(time);
 }
 
-console.log(`\nMax Speed = ${maxSpeed}`);
-
 outputStream.end();
 bar.stop();
+
+console.log(`Max Speed = ${maxSpeed}`);
+console.log(`Max Deceleration = ${maxDeceleration}`);
+console.log('Average Speed', averageSpeed.reduce((acc, s) => acc + s, 0) / averageSpeed.length);
+console.log('Average Distance Between Cars', averageDistancesBetweenCars.reduce((acc, s) => acc + s, 0) / averageDistancesBetweenCars.length);
+const speedStream = fs.createWriteStream(`./speeds-${RUN_ID}.tsv`)
+speedStream.write(['Time', 'Speed'].join('\t') + '\n');
+averageSpeed.forEach((s, t) => speedStream.write([t * TIME_STEP, s].join('\t') + '\n'));
+speedStream.end();
+const distancesStream = fs.createWriteStream(`./distances-${RUN_ID}.tsv`)
+distancesStream.write(['Time', 'Distance'].join('\t') + '\n');
+averageDistancesBetweenCars.forEach((d, t) => distancesStream.write([t * TIME_STEP, d].join('\t') + '\n'));
+distancesStream.end();
