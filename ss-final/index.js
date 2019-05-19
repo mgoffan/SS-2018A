@@ -452,7 +452,11 @@ const run = ({ n, period, phi1, phi2, phi3, streets, justSim }) => {
 				});
 			});
 		});
-		if (!ok) return -1;
+		if (!ok) {
+			outputStream && outputStream.end();
+			bar.stop();
+			return -1;
+		}
 		averageSpeed.push(speedSum / k);
 		averageDistancesBetweenCars.push(distancesSum / k);
 		if (time % (1 / FPS) < TIME_STEP) {
