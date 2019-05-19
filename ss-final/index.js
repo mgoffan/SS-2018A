@@ -180,14 +180,18 @@ const run = ({ n, period, phi1, phi2, phi3, streets, justSim }) => {
 	const totalTimeSteps = Math.ceil(DURATION / TIME_STEP)
 			, captureEvery = Math.ceil(DURATION / FPS / TIME_STEP)
 
-	console.log(`
-	ID = ${RUN_ID}
-	Input File = ${INPUT_FILE}
-	Running simulation for ${N} cars.
-	Total time steps = ${totalTimeSteps}
-	FPS = ${FPS}
-	Capture every = ${captureEvery}
-	`);
+	if (justSim) {
+		console.log({ period, phi1, phi2, phi3 });
+	} else {
+		console.log(`
+		ID = ${RUN_ID}
+		Input File = ${INPUT_FILE}
+		Running simulation for ${N} cars.
+		Total time steps = ${totalTimeSteps}
+		FPS = ${FPS}
+		Capture every = ${captureEvery}
+		`);
+	}
 
 	const ovitoXYZExporter = (streets, t) => {
 		if (!outputStream) return;
@@ -434,6 +438,10 @@ const run = ({ n, period, phi1, phi2, phi3, streets, justSim }) => {
 					}
 					distancesSum += (() => {
 						const target = typeof(l.cars[i].next) === 'string' ? nextCars.find(c => c.id === l.cars[i].prevNext) : l.cars[i].next;
+						if (!target) {
+							console.log(l.cars[i]);
+							return 0;
+						}
 						if (target.x > l.cars[i].x) {
 							return target.x - l.cars[i].x - l.cars[i].length;
 						}
