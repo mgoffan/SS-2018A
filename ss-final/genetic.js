@@ -1,5 +1,9 @@
-const Genetic = require('genetic-js');
+const Genetic = require('genetic-js')
+		, Simulation = require('./index')
+		, N = 16;
 
+const streets = Simulation.generate({ N });
+const dumpedStreets = Simulation.dumpableStreets(streets);
 const genetic = Genetic.create();
 
 genetic.optimize = Genetic.Optimize.Minimize;
@@ -12,16 +16,16 @@ genetic.seed = function() {
 	// return randomString(this.userData["solution"].length);
 	return {
 		period: Math.round(Math.random() * 332 + 1),
-		phi0: Math.round(Math.random() * 332),
 		phi1: Math.round(Math.random() * 332),
 		phi2: Math.round(Math.random() * 332),
+		phi3: Math.round(Math.random() * 332),
 	}
 };
 
 genetic.mutate = function(entity) {
 	
 	// toin coss what to change
-	const prop = ['period', 'phi0', 'phi1', 'phi2'].find(() => Math.random() > 0.5);
+	const prop = ['period', 'phi1', 'phi2', 'phi3'].find(() => Math.random() > 0.5);
 	
 	// chromosomal drift
 	return Object.assign({}, entity, {
@@ -37,8 +41,8 @@ const pickBy = (obj, keys) => Object.keys(obj).filter(k => ~keys.indexOf(k)).red
 genetic.crossover = function(mother, father) {
 
 	// two-point crossover
-	const fatherProps = ['period', 'phi0', 'phi1', 'phi2'].filter(() => Math.random() > 0.5);
-	const motherProps = ['period', 'phi0', 'phi1', 'phi2'].filter(p => !~fatherProps.indexOf(p));
+	const fatherProps = ['period', 'phi1', 'phi2', 'phi3'].filter(() => Math.random() > 0.5);
+	const motherProps = ['period', 'phi1', 'phi2', 'phi3'].filter(p => !~fatherProps.indexOf(p));
 
 	const son = Object.assign({}, father, pickBy(mother, motherProps));
 	const daughter = Object.assign({}, mother, pickBy(father, fatherProps));
@@ -46,13 +50,17 @@ genetic.crossover = function(mother, father) {
 	return [son, daughter];
 };
 
+const mapEntityToConfig = entity => ({
+	justSim: true,
+	streets: Simulation.fromDumpedStreets(dumpedStreets),
+	n: N,
+	...entity,
+});
+
 genetic.fitness = function(entity) {
-	
+
 	/// run program here synchronously
-
-	
-
-	return;
+	return Simulation.run(mapEntityToConfig(entity));
 };
 
 
@@ -70,8 +78,8 @@ const config = {
 	// skip: 20
 };
 
-const userData = {
-	"solution": $("#quote").val()
-};
+const userData = {};
 
-genetic.evolve(config, userData);
+genetic.start();
+
+// genetic.evolve(config, userData);
