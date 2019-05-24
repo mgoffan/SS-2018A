@@ -7,7 +7,7 @@ const STREET_LENGTH = 100
 		, CAR_LENGTH = 5.26
 		, CAR_WIDTH = 1.76
 		, LANE_WIDTH = 3
-		, DESIRED_VELOCITY = 11.111
+		, DESIRED_VELOCITY = 16.6666
 		, REACTION_TIME = 1.6
 		, MAXIMUM_ACCELERATION = 0.73
 		, DESIRED_DECELERATION = 1.67
@@ -89,7 +89,7 @@ const generate = ({ N }) => {
 			return x0;
 		})(),
 		y: 0,
-		desiredVelocity: DESIRED_VELOCITY * (1 + Math.random()),
+		desiredVelocity: DESIRED_VELOCITY,
 		reactionTime: REACTION_TIME,
 		maximumAcceleration: MAXIMUM_ACCELERATION,
 		desiredDeceleration: DESIRED_DECELERATION,
@@ -495,3 +495,18 @@ module.exports = {
 	dumpableStreets,
 	fromDumpedStreets
 }
+
+// const streets = generate({ N: 16 });
+
+const dumpedStreets = require('./cars/test-01.json');
+
+// fs.writeFileSync('./cars/test-01.json', JSON.stringify(dumpableStreets(streets), null, 2));
+
+run({
+	n: 16,
+	streets: fromDumpedStreets(dumpedStreets),
+	period: 15,
+	phi1: 15,
+	phi2: 0,
+	phi3: 0
+})
