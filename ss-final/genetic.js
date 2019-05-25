@@ -101,7 +101,7 @@ const config = {
 	iterations: 100,
 	size: 25,
 	crossover: 0.9,
-	mutation: 0.3,
+	mutation: 0.9,
 	// skip: 20
 };
 

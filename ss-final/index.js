@@ -4,7 +4,7 @@ const fs = require('fs')
 
 const STREET_LENGTH = 100
 		, STREETS = 3
-		, CAR_LENGTH = 5.26
+		, CAR_LENGTH = 5
 		, CAR_WIDTH = 1.76
 		, LANE_WIDTH = 3
 		, DESIRED_VELOCITY = 16.6666
@@ -74,6 +74,12 @@ const fromDumpedStreets = streets => streets.map(s => ({
 	}))
 }));
 
+const crypto = require('crypto');
+const random = () => {
+	const buf = crypto.randomBytes(32);
+	return buf.reduce((memo, val) => memo + val, 0) / (32 * 0xff);
+};
+
 const generate = ({ N }) => {
 	const streets = Object.values(streetsRepo).reverse();
 	const generateCarGroup = (s, l, length) => Array.from({ length }).map((_, i) => ({
@@ -81,7 +87,7 @@ const generate = ({ N }) => {
 		length: CAR_LENGTH,
 		width: CAR_WIDTH,
 		x: (() => {
-			const x0 = Math.random() * STREET_LENGTH * STREETS;
+			const x0 = random() * STREET_LENGTH * STREETS;
 			if (x0 >= STREETS * STREET_LENGTH / 3 * 2)
 				return x0 + 2 * LANE_WIDTH;
 			if (x0 >= STREETS * STREET_LENGTH / 3)
@@ -103,8 +109,8 @@ const generate = ({ N }) => {
 	
 	const isCarGroupOK = cars => every(cars, (car, i) => {
 		const isNotInJoint = i => {
-			const sx = (STREETS * STREET_LENGTH + 2 * LANE_WIDTH) / 3 * i - LANE_WIDTH / 2 + i;
-			return !(car.x >= sx - CAR_LENGTH && car.x <= sx);
+			const sx = (STREETS * STREET_LENGTH + 2 * LANE_WIDTH) / 3 * i - LANE_WIDTH / 2 + i - LANE_WIDTH / 2;
+			return !(sx - CAR_LENGTH <= car.x && car.x <= sx + LANE_WIDTH + LANE_WIDTH / 2);
 		};
 		const doesNotOverlapWithPreviousCars = c => car.x - c.x - c.length - JAM_DISTANCE_0 > 0;
 		return every([1, 2], isNotInJoint) && every(cars.slice(0, i), doesNotOverlapWithPreviousCars);
@@ -113,7 +119,7 @@ const generate = ({ N }) => {
 	streets.forEach(s => {
 		s.lanes = [1, 2].map(id => {
 			const cars = (() => {
-				let n = 10000;
+				let n = 100000;
 				do {
 					const carGroup = generateCarGroup(s, id, Math.ceil(N / streets.length / 2));
 					carGroup.sort((a, b) => a.x - b.x);
@@ -135,14 +141,18 @@ const generate = ({ N }) => {
 	return streets;
 }
 
-const run = ({ n, period, phi1, phi2, phi3, streets, justSim }) => {
+const run = ({ n, period, phi1, phi2, phi3, streets, justSim, showBar = true }) => {
+
+	if (typeof(period) === 'undefined') {
+		throw new Error('missing period');
+	}
 
 	const N = n || 64
 			, MINUTES_TO_SECONDS = 60
 			, DURATION = 5 * MINUTES_TO_SECONDS
 			, RUN_ID = Date.now() % 1000
 			, OUTPUT_FILE = `./out/output-${RUN_ID}.xyz`
-			, P = (period || 30) / Math.PI
+			, P = period / Math.PI
 			, INPUT_FILE = null;//'./cars/cars-219.json';
 
 	const stoplights = [{
@@ -181,7 +191,7 @@ const run = ({ n, period, phi1, phi2, phi3, streets, justSim }) => {
 			, captureEvery = Math.ceil(DURATION / FPS / TIME_STEP)
 
 	if (justSim) {
-		console.log({ period, phi1, phi2, phi3 });
+		console.log({ N, period, phi1, phi2, phi3 });
 	} else {
 		console.log(`
 		ID = ${RUN_ID}
@@ -299,7 +309,7 @@ const run = ({ n, period, phi1, phi2, phi3, streets, justSim }) => {
 	let maxDeceleration = 0;
 	const averageSpeed = [];
 	const averageDistancesBetweenCars = [];
-	bar.start(DURATION, 0);
+	showBar && bar.start(DURATION, 0);
 	for (let time = 0; time < DURATION; time += TIME_STEP) {
 		streets.forEach(street => {
 			if (!time) return;
@@ -406,7 +416,7 @@ const run = ({ n, period, phi1, phi2, phi3, streets, justSim }) => {
 			
 					const values = [ax, nax, nvx, nx]
 					if (values.map(isNaN).find(Boolean)) {
-						console.log('No Good');
+						// console.log('No Good');
 						ok = false;
 						return -1;
 						// console.log(c);
@@ -454,7 +464,7 @@ const run = ({ n, period, phi1, phi2, phi3, streets, justSim }) => {
 		});
 		if (!ok) {
 			outputStream && outputStream.end();
-			bar.stop();
+			showBar && bar.stop();
 			return -1;
 		}
 		averageSpeed.push(speedSum / k);
@@ -462,11 +472,11 @@ const run = ({ n, period, phi1, phi2, phi3, streets, justSim }) => {
 		if (time % (1 / FPS) < TIME_STEP) {
 			ovitoXYZExporter(streets, time + TIME_STEP);
 		}
-		bar.update(time);
+		showBar && bar.update(time);
 	}
 
 	outputStream && outputStream.end();
-	bar.stop();
+	showBar && bar.stop();
 
 	const avgSpeed = averageSpeed.reduce((acc, s) => acc + s, 0) / averageSpeed.length;
 
@@ -494,19 +504,21 @@ module.exports = {
 	generate,
 	dumpableStreets,
 	fromDumpedStreets
-}
+};
 
-// const streets = generate({ N: 16 });
 
-const dumpedStreets = require('./cars/test-01.json');
+// const streets = generate({ N: 32 });
 
-// fs.writeFileSync('./cars/test-01.json', JSON.stringify(dumpableStreets(streets), null, 2));
+// const dumpedStreets = require('./cars/cars-40.json');
 
-run({
-	n: 16,
-	streets: fromDumpedStreets(dumpedStreets),
-	period: 15,
-	phi1: 15,
-	phi2: 0,
-	phi3: 0
-})
+// fs.writeFileSync('./cars/cars-32.json', JSON.stringify(dumpableStreets(streets), null, 2));
+
+// run({
+// 	n: 40,
+// 	streets: fromDumpedStreets(dumpedStreets),
+// 	period: 60,
+// 	phi1: 0,
+// 	phi2: 0,
+// 	phi3: 0
+// })
+
