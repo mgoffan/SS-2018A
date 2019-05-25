@@ -1,6 +1,8 @@
 const Genetic = require('genetic-js')
-		, Simulation = require('./index')
-		, N = 16;
+		, Simulation = require('./index');
+
+const args = process.argv.slice(2);
+const N = parseInt(args[0], 10);
 
 const streets = Simulation.generate({ N });
 const dumpedStreets = Simulation.dumpableStreets(streets);
@@ -60,6 +62,7 @@ genetic.crossover = function(mother, father) {
 
 const mapEntityToConfig = entity => ({
 	justSim: true,
+	showBar: false,
 	streets: Simulation.fromDumpedStreets(dumpedStreets),
 	n: N,
 	...entity,
@@ -90,6 +93,7 @@ genetic.fitness = function(entity) {
 
 genetic.notification = function (pop, gen, stats, isFinished) {
 	if (isFinished) {
+		console.log(N);
 		console.log(gen);
 		console.log(pop);
 		console.log(stats);
@@ -98,8 +102,8 @@ genetic.notification = function (pop, gen, stats, isFinished) {
 
 
 const config = {
-	iterations: 100,
-	size: 25,
+	// iterations: 100,
+	// size: 25,
 	crossover: 0.9,
 	mutation: 0.9,
 	// skip: 20
