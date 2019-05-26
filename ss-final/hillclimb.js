@@ -48,8 +48,8 @@ const uniqBy = (arr, predicate) => {
 
 const neighbours = config => {
 	const mapper = k => {
-		const diff1 = Math.min(MAX, Math.max(MIN, config[k] + .1));
-		const diff2 = Math.min(MAX, Math.max(MIN, config[k] - .1));
+		const diff1 = Math.min(MAX, Math.max(MIN, config[k] + 1));
+		const diff2 = Math.min(MAX, Math.max(MIN, config[k] - 1));
 		const next = [];
 		if (config[k] !== diff1) {
 			next.push(Object.assign({}, config, { [k]: diff1 }));
@@ -66,7 +66,7 @@ const neighbours = config => {
 const cache = {};
 
 const start = Date.now();
-const totalTime = 2 * 60 * 1000;
+const totalTime = 20 * 60 * 1000;
 console.log(`Running for ${N}. Started at: ${start}`);
 while (Date.now() - start <= totalTime) {
 	const next = neighbours(current);
@@ -84,6 +84,7 @@ while (Date.now() - start <= totalTime) {
 		const hash = JSON.stringify(next[i]);
 		if (cache[hash]) continue;
 		const speed = Simulation.run(mapEntityToConfig(next[i]));
+		if (speed < 0) continue;
 		cache[hash] = speed;
 		if (speed > best) {
 			best = speed;
@@ -103,7 +104,16 @@ while (Date.now() - start <= totalTime) {
 	console.log(`Left: ${(start + totalTime - Date.now())/1000}s`);
 }
 
-require('fs').writeFileSync(`./results/hc-${N}.json`, JSON.stringify({
+const extractCache = Object.keys(cache).map(k => {
+	return {
+		N,
+		speed: cache[k]
+	};
+});
+
+require('fs').writeFileSync(`./results/hc-${N}.json`, JSON.stringify(extractCache, null, 2));
+
+require('fs').writeFileSync(`./results/hc-best-${N}.json`, JSON.stringify({
 	N,
 	runtime: totalTime,
 	speed: best,
